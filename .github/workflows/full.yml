@@ -49,17 +49,15 @@ jobs:
                                   -NoNewWindow -Wait -PassThru
 
           if ($process.ExitCode -ne 0) {
-              Write-Error "Cargo process failed. Check ${cargoOutputPath}."
+              Write-Output "Cargo process failed. Check ${cargoOutputPath}."
               exit 1
           }
-
 
           if (-not (Test-Path -Path ${cargoOutputPath}) -or !(Get-Content -Path
           ${cargoOutputPath})) {
-              Write-Error "${cargoOutputPath} is missing or empty."
+              Write-Output "${cargoOutputPath} is missing or empty."
               exit 1
           }
-
 
           $binaryPaths = @()
 
@@ -70,12 +68,10 @@ jobs:
               }
           }
 
-
           if (-not $binaryPaths) {
-              Write-Error "No binaries found in cargo output."
+              Write-Output "No binaries found in cargo output."
               exit 1
           }
-
 
           $targetDir = "tests_bins"
 
@@ -83,10 +79,9 @@ jobs:
               New-Item -ItemType Directory -Path $targetDir | Out-Null
           }
 
-
           foreach ($binaryPath in $binaryPaths) {
               if (-not (Test-Path -Path $binaryPath)) {
-                  Write-Warning "Binary not found: $binaryPath"
+                  Write-Outputing "Binary not found: $binaryPath"
                   exit 1
               }
 
@@ -94,7 +89,6 @@ jobs:
               $destinationPath = Join-Path -Path $targetDir -ChildPath $basename
               Copy-Item -Path $binaryPath -Destination $destinationPath -Force
           }
-
 
           Write-Host "Binaries successfully copied and updated in ${targetDir}:"
 
@@ -279,19 +273,15 @@ jobs:
           @("--no-input", "--tls", "cert.pem", "key.pem", "--stop-after", "30")
           -NoNewWindow -PassThru
 
-
           if (-not $process1) {
               Write-Output "Server failed to run."
               exit 1
           }
 
-
           Start-Sleep -Seconds 5
-
 
           $process2 = Start-Process -FilePath "spacebuild-siege" -ArgumentList
           @("--tls", "ca_cert.pem") -NoNewWindow -PassThru
-
 
           if (-not $process2) {
               Write-Output "Siege failed to run. Waiting for server to finish..."
@@ -299,16 +289,13 @@ jobs:
               exit 1
           }
 
-
           $process2.WaitForExit()
 
           $exitCode2 = $process2.ExitCode
 
-
           $process1.WaitForExit()
 
           $exitCode1 = $process1.ExitCode
-
 
           if ($exitCode2 -ne 0) {
               Write-Output "Siege failed with code: $exitCode2."
@@ -319,11 +306,9 @@ jobs:
               Write-Output "Server failed with code: $exitCode1."
           }
 
-
           if ($exitCode1 -ne 0 -or $exitCode2 -ne 0) {
               exit 1
           }
-
 
           exit 0
   client-export:
@@ -400,6 +385,7 @@ jobs:
         with:
           name: "client-release-${{matrix.channel}}"
           path: "build/${{matrix.channel}}"
+
   bundle:
     name: Bundle
     runs-on: ubuntu-24.04
@@ -424,14 +410,16 @@ jobs:
           name: "client-release-${{ matrix.channel }}"
           path: spacebuild
       - uses: montudor/action-zip@v1
+        if: ${{ matrix.channel != 'webgl'}}
         with:
-          args: 'zip -qq -r release-${{ matrix.channel }}.zip spacebuild/*'
+          args: 'zip -qq -r release-${{ matrix.channel }}.zip spacebuild'
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: "release-${{ matrix.channel }}"
           path: 'release-${{ matrix.channel }}.zip'
-  publish-itch:
+
+  publish-itchio:
     name: Publish ItchIO
     needs: bundle
     strategy:
@@ -446,16 +434,17 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: "release-${{ matrix.channel }}"
-          path: "release-${{ matrix.channel }}"
+          path: "${{ github.repository_id }}_${{ github.ref_name }}_${{ matrix.channel }}"
       - uses: KikimoraGames/itch-publish@v0.0.3
         with:
           butlerApiKey: "${{secrets.BUTLER_API_KEY}}"
-          gameData: "release-${{ matrix.channel }}"
+          gameData: "${{ github.repository_id }}_${{ github.ref_name }}_${{ matrix.channel }}"
           itchUsername: "${{secrets.ITCHIO_USERNAME}}"
           itchGameId: "${{ secrets.ITCHIO_GAME }}"
           buildChannel: "${{ matrix.channel }}"
+
   publish-github:
-    name: Public Github
+    name: Publish Github
     needs: bundle
     permissions:
       contents: read
