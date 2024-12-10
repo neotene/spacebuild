@@ -1,460 +1,488 @@
 name: Build|Tests|Install|Siege|Godot|Publish
-on:
- push:
-  branches:
-    - 'dev'
-
-  paths:
-    - '**.rs'
-    - 'Cargo.toml'
-    - 'Cargo.lock'
-    - '.github/workflows/full.yml'
-    - 'godot/**'
-
-env:
-  GODOT_VERSION: 4.3
-  EXPORT_NAME: spacebuild
-  PROJECT_PATH: godot
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
+'on':
+  push:
+    branches:
+      - dev
+    paths:
+      - '**.rs'
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/full.yml
+      - godot/**
 jobs:
-   build:
-        name: Build Debug
-        strategy:
-            matrix:
-                os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04, windows-2019, windows-2022, macos-13, macos-14, macos-15]
-        runs-on: ${{ matrix.os }}
-        steps:
-        - name: Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}
-          uses: actions/checkout@master
-
-        - name: Build SpaceBuild library Debug
-          uses: actions-rs/cargo@v1
-          with:
-            command: build
-            args: -p spacebuild --lib
-
-        - name: Build Integration Tests Debug
-          uses: actions-rs/cargo@v1
-          with:
-            command: build
-            args: -p spacebuild --tests
-
-        - name: Bundle Tests Binaries
-          shell: pwsh
-          run: |
-                $cargoOutputPath = "cargo_out.txt"
-
-                $process = Start-Process -FilePath cargo -ArgumentList @("test", "--no-run") `
-                                        -RedirectStandardError ${cargoOutputPath} `
-                                        -NoNewWindow -Wait -PassThru
-
-                if ($process.ExitCode -ne 0) {
-                    Write-Error "Cargo process failed. Check ${cargoOutputPath}."
-                    exit 1
-                }
-
-                if (-not (Test-Path -Path ${cargoOutputPath}) -or !(Get-Content -Path ${cargoOutputPath})) {
-                    Write-Error "${cargoOutputPath} is missing or empty."
-                    exit 1
-                }
-
-                $binaryPaths = @()
-                foreach ($line in Get-Content -Path ${cargoOutputPath}) {
-                    $match = $line | Select-String -Pattern 'Executable.*\((.+?)\)' -AllMatches
-                    if ($match.Matches.Count -gt 0) {
-                        $binaryPaths += $match.Matches.Groups[1].Value
-                    }
-                }
-
-                if (-not $binaryPaths) {
-                    Write-Error "No binaries found in cargo output."
-                    exit 1
-                }
-
-                $targetDir = "tests_bins"
-                if (-not (Test-Path -Path $targetDir)) {
-                    New-Item -ItemType Directory -Path $targetDir | Out-Null
-                }
-
-                foreach ($binaryPath in $binaryPaths) {
-                    if (-not (Test-Path -Path $binaryPath)) {
-                        Write-Warning "Binary not found: $binaryPath"
-                        exit 1
-                    }
-
-                    $basename = [System.IO.Path]::GetFileNameWithoutExtension($binaryPath).Split('-')[0]
-                    $destinationPath = Join-Path -Path $targetDir -ChildPath $basename
-                    Copy-Item -Path $binaryPath -Destination $destinationPath -Force
-                }
-
-                Write-Host "Binaries successfully copied and updated in ${targetDir}:"
-                Get-ChildItem -Path $targetDir | ForEach-Object { Write-Host $_.FullName }
-
-                
-        - name: Upload Test Binaries
-          uses: actions/upload-artifact@v4
-          with:
-                  name: tests-${{matrix.os}}
-                  path: tests_bins
-
-        - name: Build SpaceBuild Server Debug
-          uses: actions-rs/cargo@v1
-          with:
-              command: build
-              args: -p spacebuild-server
-
-        - name: Build SpaceBuild Siege Debug
-          uses: actions-rs/cargo@v1
-          with:
-              command: build
-              args: -p spacebuild-siege
+  build:
+    name: Build Debug
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - windows-2019
+          - windows-2022
+          - macos-13
+          - macos-14
+          - macos-15
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: "Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}"
+        uses: actions/checkout@master
+      - name: Build SpaceBuild library Debug
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild --lib'
+      - name: Build Integration Tests Debug
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild --tests'
+      - name: Bundle Tests Binaries
+        shell: pwsh
+        run: >
+          $cargoOutputPath = "cargo_out.txt"
 
 
-# ------------------------------------------------------------------------------------------
+          $process = Start-Process -FilePath cargo -ArgumentList @("test",
+          "--no-run") `
+                                  -RedirectStandardError ${cargoOutputPath} `
+                                  -NoNewWindow -Wait -PassThru
 
-   tests-instance:
-        name: Tests Instance
-        needs: build
-        strategy:
-            matrix:
-                os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04, windows-2019, windows-2022, macos-13, macos-14, macos-15]
-                case: [case_01_db_init, case_02_load_systems, case_03_save, case_04_add_get, case_05_load_player_by_nickname]
-
-        runs-on: ${{ matrix.os }}
-        steps:
-          - name: Get Test Binaries
-            uses: actions/download-artifact@v4
-            with:
-                name: tests-${{matrix.os}}
-                path: tests_bins
-
-          - name: Chmod if necessary
-            if: ${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')}}
-            run: |
-                chmod +x tests_bins/instance
-
-          - name: Run Tests
-            run: tests_bins/instance ${{ matrix.case }}
-            env:
-                RUST_LOG: "INFO"
-                TMPDIR: "./"
-
-# ------------------------------------------------------------------------------------------
-
-   tests-game:
-        name: Tests Game
-        needs: tests-instance
-        strategy:
-                matrix:
-                    os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04, windows-2019, windows-2022, macos-13, macos-14, macos-15]
-                    case : [case_01_connection, case_02_double_connection, case_03_successful_first_authentication, case_04_successful_first_authentication_tls, case_05_known_player_authentication, case_06_double_authentication, case_07_auth_reauth, case_08_wait_first_gameinfo]
-        runs-on: ${{ matrix.os }}
-        steps:
-            - name: Get Test Binaries
-              uses: actions/download-artifact@v4
-              with:
-                name: tests-${{matrix.os}}
-                path: tests_bins
-
-            - name: Chmod if necessary
-              if: ${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')}}
-              run: |
-                chmod +x tests_bins/game
-
-            - name: Run Tests
-              run: tests_bins/game ${{ matrix.case }}
-              env:
-                RUST_LOG: "INFO"
-                TMPDIR: "./"
-
-# ------------------------------------------------------------------------------------------
-
-   siege:
-        name: Siege
-        needs: [tests-instance, tests-game]
-        strategy:
-            matrix:
-                os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04, windows-2019, windows-2022, macos-13, macos-14, macos-15]
-                
-        runs-on: ${{ matrix.os }}
-        steps:
-        - name: Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}
-          uses: actions/checkout@master
-
-        - name: Set up clang if necessary
-          if: ${{ contains(matrix.os, 'ubuntu-20.04') }}
-          uses: egor-tensin/setup-clang@v1
-          with:
-                version: latest
-                platform: x64
-
-        - name: Build SpaceBuild Library Release
-          uses: actions-rs/cargo@v1
-          with:
-                  command: build
-                  args: -p spacebuild -r
-
-        - name: Build SpaceBuild Server Release
-          uses: actions-rs/cargo@v1
-          with:
-            command: build
-            args: -p spacebuild-server -r
-
-        - name: Build SpaceBuild Siege Release
-          uses: actions-rs/cargo@v1
-          with:
-              command: build
-              args: -p spacebuild-siege -r
+          if ($process.ExitCode -ne 0) {
+              Write-Error "Cargo process failed. Check ${cargoOutputPath}."
+              exit 1
+          }
 
 
-        - name: Upload Server Release Windows
-          if: ${{ contains(matrix.os, 'windows-2022')}}
-          uses: actions/upload-artifact@v4
-          with:
-              name: server-release-windows
-              path: target/release/spacebuild-server.exe
-
-        - name: Upload Server Release Linux
-          if: ${{ contains(matrix.os, 'ubuntu-24.04')}}
-          uses: actions/upload-artifact@v4
-          with:
-                name: server-release-linux
-                path: target/release/spacebuild-server
-
-        - name: Upload Server Release MacOS
-          if: ${{ contains(matrix.os, 'macos-15')}}
-          uses: actions/upload-artifact@v4
-          with:
-                name: server-release-macos
-                path: target/release/spacebuild-server
+          if (-not (Test-Path -Path ${cargoOutputPath}) -or !(Get-Content -Path
+          ${cargoOutputPath})) {
+              Write-Error "${cargoOutputPath} is missing or empty."
+              exit 1
+          }
 
 
-        - name: Install SpaceBuild Server
-          uses: actions-rs/cargo@v1
-          with:
-            command: install
-            args: --path server
+          $binaryPaths = @()
 
-        - name: Install SpaceBuild Siege
-          uses: actions-rs/cargo@v1
-          with:
-            command: install
-            args: --path siege
-
-        - name: Create Crypto Files from Env
-          shell: pwsh
-          run: |
-            Out-File -FilePath cert.pem -InputObject "${{ vars.SPACEBUILD_SERVER_CERT }}"
-            Out-File -FilePath key.pem -InputObject "${{ vars.SPACEBUILD_SERVER_KEY }}"
-            Out-File -FilePath ca_cert.pem -InputObject "${{ vars.SPACEBUILD_CA_CERT }}"
-
-        - name: Launch Server and Siege TLS
-          shell: pwsh
-          env:
-            RUST_LOG: "INFO"
-          run: |
-            $process1 = Start-Process -FilePath "spacebuild-server" -ArgumentList @("--no-input", "--tls", "cert.pem", "key.pem", "--stop-after", "30") -NoNewWindow -PassThru
-
-            if (-not $process1) {
-                Write-Output "Server failed to run."
-                exit 1
-            }
-
-            Start-Sleep -Seconds 5
-
-            $process2 = Start-Process -FilePath "spacebuild-siege" -ArgumentList @("--tls", "ca_cert.pem") -NoNewWindow -PassThru
-
-            if (-not $process2) {
-                Write-Output "Siege failed to run. Waiting for server to finish..."
-                $process2.WaitForExit()
-                exit 1
-            }
-
-            $process2.WaitForExit()
-            $exitCode2 = $process2.ExitCode
-
-            $process1.WaitForExit()
-            $exitCode1 = $process1.ExitCode
-
-            if ($exitCode2 -ne 0) {
-                Write-Output "Siege failed with code: $exitCode2."
-            }
-
-            if ($exitCode1 -ne 0) {
-                Write-Output "Server failed with code: $exitCode1."
-            }
-
-            if ($exitCode1 -ne 0 -or $exitCode2 -ne 0) {
-                exit 1
-            }
-
-            exit 0
+          foreach ($line in Get-Content -Path ${cargoOutputPath}) {
+              $match = $line | Select-String -Pattern 'Executable.*\((.+?)\)' -AllMatches
+              if ($match.Matches.Count -gt 0) {
+                  $binaryPaths += $match.Matches.Groups[1].Value
+              }
+          }
 
 
-# ------------------------------------------------------------------------------------------
+          if (-not $binaryPaths) {
+              Write-Error "No binaries found in cargo output."
+              exit 1
+          }
 
-   client-export:
-        name: Client Export
-        runs-on: ubuntu-24.04
-        strategy:
-            matrix:
-               channel:
-                - windows
-                - macos
-                - linux
-                - webgl
 
-        container:
-            image: barichello/godot-ci:4.3
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-              with:
-                lfs: true
-            - name: Setup
-              run: |
-                mkdir -v -p ~/.local/share/godot/export_templates/
-                mkdir -v -p ~/.config/
-                mv /root/.config/godot ~/.config/godot
-                mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-                mkdir -v -p build/${{matrix.channel}}
+          $targetDir = "tests_bins"
 
-            - name: Build Windows
-              if: ${{ matrix.channel == 'windows'}}
-              run: |
-                EXPORT_DIR="$(readlink -f build)"
-                cd $PROJECT_PATH
-                godot --headless --verbose --export-release "${{matrix.channel}}" "$EXPORT_DIR/${{matrix.channel}}/$EXPORT_NAME.exe"
+          if (-not (Test-Path -Path $targetDir)) {
+              New-Item -ItemType Directory -Path $targetDir | Out-Null
+          }
 
-            - name: Build Linux
-              if: ${{ matrix.channel == 'linux'}}
-              run: |
-                EXPORT_DIR="$(readlink -f build)"
-                cd $PROJECT_PATH
-                godot --headless --verbose --export-release "${{matrix.channel}}" "$EXPORT_DIR/${{matrix.channel}}/$EXPORT_NAME.x68_64"
 
-            - name: Build MacOS
-              if: ${{ matrix.channel == 'macos'}}
-              run: |
-                EXPORT_DIR="$(readlink -f build)"
-                cd $PROJECT_PATH
-                godot --headless --verbose --export-release "${{matrix.channel}}" "$EXPORT_DIR/${{matrix.channel}}/$EXPORT_NAME.zip"
+          foreach ($binaryPath in $binaryPaths) {
+              if (-not (Test-Path -Path $binaryPath)) {
+                  Write-Warning "Binary not found: $binaryPath"
+                  exit 1
+              }
 
-            - name: Build WebGL
-              if: ${{ matrix.channel == 'webgl'}}
-              run: |
-                EXPORT_DIR="$(readlink -f build)"
-                cd $PROJECT_PATH
-                godot --headless --verbose --export-release "${{matrix.channel}}" "$EXPORT_DIR/${{matrix.channel}}/$EXPORT_NAME.html"
+              $basename = [System.IO.Path]::GetFileNameWithoutExtension($binaryPath).Split('-')[0]
+              $destinationPath = Join-Path -Path $targetDir -ChildPath $basename
+              Copy-Item -Path $binaryPath -Destination $destinationPath -Force
+          }
 
-            - name: Upload Artifact
-              uses: actions/upload-artifact@v4
-              with:
-                name: client-release-${{matrix.channel}}
-                path: build/${{matrix.channel}}
 
-# ------------------------------------------------------------------------------------------
+          Write-Host "Binaries successfully copied and updated in ${targetDir}:"
 
-   bundle:
+          Get-ChildItem -Path $targetDir | ForEach-Object { Write-Host
+          $_.FullName }
+      - name: Upload Test Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: "tests-${{matrix.os}}"
+          path: tests_bins
+      - name: Build SpaceBuild Server Debug
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild-server'
+      - name: Build SpaceBuild Siege Debug
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild-siege'
+  tests-instance:
+    name: Tests Instance
+    needs: build
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - windows-2019
+          - windows-2022
+          - macos-13
+          - macos-14
+          - macos-15
+        case:
+          - case_01_db_init
+          - case_02_load_systems
+          - case_03_save
+          - case_04_add_get
+          - case_05_load_player_by_nickname
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: Get Test Binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: "tests-${{matrix.os}}"
+          path: tests_bins
+      - name: Chmod if necessary
+        if: "${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')}}"
+        run: |
+          chmod +x tests_bins/instance
+      - name: Run Tests
+        run: "tests_bins/instance ${{ matrix.case }}"
+        env:
+          RUST_LOG: INFO
+          TMPDIR: ./
+  tests-game:
+    name: Tests Game
+    needs: tests-instance
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - windows-2019
+          - windows-2022
+          - macos-13
+          - macos-14
+          - macos-15
+        case:
+          - case_01_connection
+          - case_02_double_connection
+          - case_03_successful_first_authentication
+          - case_04_successful_first_authentication_tls
+          - case_05_known_player_authentication
+          - case_06_double_authentication
+          - case_07_auth_reauth
+          - case_08_wait_first_gameinfo
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: Get Test Binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: "tests-${{matrix.os}}"
+          path: tests_bins
+      - name: Chmod if necessary
+        if: "${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')}}"
+        run: |
+          chmod +x tests_bins/game
+      - name: Run Tests
+        run: "tests_bins/game ${{ matrix.case }}"
+        env:
+          RUST_LOG: INFO
+          TMPDIR: ./
+  siege:
+    name: Siege
+    needs:
+      - tests-instance
+      - tests-game
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - windows-2019
+          - windows-2022
+          - macos-13
+          - macos-14
+          - macos-15
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: "Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}"
+        uses: actions/checkout@master
+      - name: Set up clang if necessary
+        if: "${{ contains(matrix.os, 'ubuntu-20.04') }}"
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: latest
+          platform: x64
+      - name: Build SpaceBuild Library Release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild -r'
+      - name: Build SpaceBuild Server Release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild-server -r'
+      - name: Build SpaceBuild Siege Release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild-siege -r'
+      - name: Upload Server Release Windows
+        if: "${{ contains(matrix.os, 'windows-2022')}}"
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-release-windows
+          path: target/release/spacebuild-server.exe
+      - name: Upload Server Release Linux
+        if: "${{ contains(matrix.os, 'ubuntu-24.04')}}"
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-release-linux
+          path: target/release/spacebuild-server
+      - name: Upload Server Release MacOS
+        if: "${{ contains(matrix.os, 'macos-15')}}"
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-release-macos
+          path: target/release/spacebuild-server
+      - name: Install SpaceBuild Server
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: '--path server'
+      - name: Install SpaceBuild Siege
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: '--path siege'
+      - name: Create Crypto Files from Env
+        shell: pwsh
+        run: >
+          Out-File -FilePath cert.pem -InputObject "${{
+          vars.SPACEBUILD_SERVER_CERT }}"
+
+          Out-File -FilePath key.pem -InputObject "${{
+          vars.SPACEBUILD_SERVER_KEY }}"
+
+          Out-File -FilePath ca_cert.pem -InputObject "${{
+          vars.SPACEBUILD_CA_CERT }}"
+      - name: Launch Server and Siege TLS
+        shell: pwsh
+        env:
+          RUST_LOG: INFO
+        run: >
+          $process1 = Start-Process -FilePath "spacebuild-server" -ArgumentList
+          @("--no-input", "--tls", "cert.pem", "key.pem", "--stop-after", "30")
+          -NoNewWindow -PassThru
+
+
+          if (-not $process1) {
+              Write-Output "Server failed to run."
+              exit 1
+          }
+
+
+          Start-Sleep -Seconds 5
+
+
+          $process2 = Start-Process -FilePath "spacebuild-siege" -ArgumentList
+          @("--tls", "ca_cert.pem") -NoNewWindow -PassThru
+
+
+          if (-not $process2) {
+              Write-Output "Siege failed to run. Waiting for server to finish..."
+              $process2.WaitForExit()
+              exit 1
+          }
+
+
+          $process2.WaitForExit()
+
+          $exitCode2 = $process2.ExitCode
+
+
+          $process1.WaitForExit()
+
+          $exitCode1 = $process1.ExitCode
+
+
+          if ($exitCode2 -ne 0) {
+              Write-Output "Siege failed with code: $exitCode2."
+          }
+
+
+          if ($exitCode1 -ne 0) {
+              Write-Output "Server failed with code: $exitCode1."
+          }
+
+
+          if ($exitCode1 -ne 0 -or $exitCode2 -ne 0) {
+              exit 1
+          }
+
+
+          exit 0
+  client-export:
+    name: Client Export
+    runs-on: ubuntu-24.04
+    env:
+      GODOT_VERSION: 4.3
+      EXPORT_NAME: spacebuild
+      PROJECT_PATH: godot
+    strategy:
+      matrix:
+        channel:
+          - windows
+          - macos
+          - linux
+          - webgl
+    container:
+      image: 'barichello/godot-ci:4.3'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Setup
+        run: >
+          mkdir -v -p ~/.local/share/godot/export_templates/
+
+          mkdir -v -p ~/.config/
+
+          mv /root/.config/godot ~/.config/godot
+
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+
+          mkdir -v -p build/${{matrix.channel}}
+      - name: Build Windows
+        if: "${{ matrix.channel == 'windows'}}"
+        run: >
+          EXPORT_DIR="$(readlink -f build)"
+
+          cd $PROJECT_PATH
+
+          godot --headless --verbose --export-release "${{matrix.channel}}"
+          "$EXPORT_DIR/${{matrix.channel}}/$EXPORT_NAME.exe"
+      - name: Build Linux
+        if: "${{ matrix.channel == 'linux'}}"
+        run: >
+          EXPORT_DIR="$(readlink -f build)"
+
+          cd $PROJECT_PATH
+
+          godot --headless --verbose --export-release "${{matrix.channel}}"
+          "$EXPORT_DIR/${{matrix.channel}}/$EXPORT_NAME.x68_64"
+      - name: Build MacOS
+        if: "${{ matrix.channel == 'macos'}}"
+        run: >
+          EXPORT_DIR="$(readlink -f build)"
+
+          cd $PROJECT_PATH
+
+          godot --headless --verbose --export-release "${{matrix.channel}}"
+          "$EXPORT_DIR/${{matrix.channel}}/$EXPORT_NAME.zip"
+      - name: Build WebGL
+        if: "${{ matrix.channel == 'webgl'}}"
+        run: >
+          EXPORT_DIR="$(readlink -f build)"
+
+          cd $PROJECT_PATH
+
+          godot --headless --verbose --export-release "${{matrix.channel}}"
+          "$EXPORT_DIR/${{matrix.channel}}/$EXPORT_NAME.html"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "client-release-${{matrix.channel}}"
+          path: "build/${{matrix.channel}}"
+  bundle:
     name: Bundle
     runs-on: ubuntu-24.04
     strategy:
-        matrix:
-            channel:
-             - windows
-             - macos
-             - linux
-             - webgl
-
-    needs: [client-export, siege]
+      matrix:
+        channel:
+          - windows
+          - macos
+          - linux
+          - webgl
+    needs:
+      - client-export
+      - siege
     steps:
-       - uses: actions/download-artifact@v4
-         if: ${{ matrix.channel != 'webgl' }}
-         with:
-             name: server-release-${{ matrix.channel }}
-             path: spacebuild
-
-       - uses: actions/download-artifact@v4
-         with:
-                 name: client-release-${{ matrix.channel }}
-                 path: spacebuild
-
-       - uses: montudor/action-zip@v1
-         with:
-                 args: zip -qq -r release-${{ matrix.channel }}.zip spacebuild
-
-       - name: Upload Artifact
-         uses: actions/upload-artifact@v4
-         with:
-                     name: release-${{ matrix.channel }}
-                     path: release-${{ matrix.channel }}.zip
-
-# ------------------------------------------------------------------------------------------
-
-   publish-itch:
-        name: Publish ItchIO
-        needs: bundle
-        strategy:
-            matrix:
-               channel:
-                - windows
-                - macos
-                - linux
-                - webgl
-
-        runs-on: ubuntu-24.04
-        steps:
-          - uses: actions/download-artifact@v4
-            with:
-                name: release-${{ matrix.channel }}
-                path: release-${{ matrix.channel }}
-
-          - uses: KikimoraGames/itch-publish@v0.0.3
-            with:
-                butlerApiKey: ${{secrets.BUTLER_API_KEY}}
-                gameData: release-${{ matrix.channel }}
-                itchUsername: ${{secrets.ITCHIO_USERNAME}}
-                itchGameId: ${{ secrets.ITCHIO_GAME }}
-                buildChannel: ${{ matrix.channel }}
-
-   publish-github:
-     name: Public Github
-     needs: bundle
-     strategy:
-        matrix:
-           channel:
-            - windows
-            - macos
-            - linux
-            - webgl
-
-     environment:
-       name: github-pages
-       url: ${{ steps.deployment.outputs.page_url }}
-     runs-on: ubuntu-24.04
-     steps:
-                      - uses: actions/download-artifact@v4
-                        with:
-                            name: release-${{ matrix.channel }}
-                            path: release-${{ matrix.channel }}
-
-                      - name: Setup Pages
-                        uses: actions/configure-pages@v5
-
-                      - name: Upload Windows Version
-                        uses: actions/upload-pages-artifact@v3
-                        with:
-                          path: release-${{ matrix.channel }}
-
-                      - name: Deploy to GitHub Pages
-                        id: deployment
-                        uses: actions/deploy-pages@v4
+      - uses: actions/download-artifact@v4
+        if: "${{ matrix.channel != 'webgl' }}"
+        with:
+          name: "server-release-${{ matrix.channel }}"
+          path: spacebuild
+      - uses: actions/download-artifact@v4
+        with:
+          name: "client-release-${{ matrix.channel }}"
+          path: spacebuild
+      - uses: montudor/action-zip@v1
+        with:
+          args: 'zip -qq -r release-${{ matrix.channel }}.zip spacebuild'
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "release-${{ matrix.channel }}"
+          path: 'release-${{ matrix.channel }}.zip'
+  publish-itch:
+    name: Publish ItchIO
+    needs: bundle
+    strategy:
+      matrix:
+        channel:
+          - windows
+          - macos
+          - linux
+          - webgl
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: "release-${{ matrix.channel }}"
+          path: "release-${{ matrix.channel }}"
+      - uses: KikimoraGames/itch-publish@v0.0.3
+        with:
+          butlerApiKey: "${{secrets.BUTLER_API_KEY}}"
+          gameData: "release-${{ matrix.channel }}"
+          itchUsername: "${{secrets.ITCHIO_USERNAME}}"
+          itchGameId: "${{ secrets.ITCHIO_GAME }}"
+          buildChannel: "${{ matrix.channel }}"
+  publish-github:
+    name: Public Github
+    needs: bundle
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    strategy:
+      matrix:
+        channel:
+          - windows
+    environment:
+      name: github-pages
+      url: "${{ steps.deployment.outputs.page_url }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: "release-${{ matrix.channel }}"
+          path: github-pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Windows Version
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: github-pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
