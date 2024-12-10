@@ -1,0 +1,22 @@
+[package]
+name = "spacebuild-siege"
+version = "0.1.0"
+authors = ["Pierre-Alexandre Goya <pierre.alexandre.goya@gmail.com>"]
+edition = "2021"
+
+[[bin]]
+name = "spacebuild-siege"
+path = "main.rs"
+test = false
+doctest = false
+
+[dependencies]
+
+common = { path = "../common", version = "0.1.0" }
+
+spacebuild = { path = "../library", version = "0.1.0"}
+
+anyhow = "1.0.94"
+clap = { version = "4.5.23", features = ["derive"]} 
+tokio = { version = "1.42.0", features = ["full"]}
+uuid = "1.11.0"

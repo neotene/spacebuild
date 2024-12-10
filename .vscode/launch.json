@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Tests",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--features=trace",
+                    "--",
+                    "--nocapture",
+                ],
+            },
+            "args": ["double_auth"],
+            "cwd": "${workspaceFolder}",
+            "env": {"RUST_LOG": "INFO"}
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Server",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin",
+                    "spacebuild-server",
+                ],
+            },
+            "args": ["spacebuild-server"],
+            "cwd": "${workspaceFolder}",
+            "env": {"RUST_LOG": "INFO"}
+        },
+    ]
+}

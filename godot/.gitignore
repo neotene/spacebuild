@@ -1,0 +1,10 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+*.tmp
+*.crt
+*.cnf
+*.csr
+*.key
+*.pem
+*.der
