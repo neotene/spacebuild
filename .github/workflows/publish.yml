@@ -18,16 +18,30 @@ jobs:
           - webgl
     runs-on: ubuntu-24.04
     steps:
+      - name: Create Final File Name
+        id: file-name-creation
+        shell: pwsh
+        run: |
+            function Remove-InvalidFileNameChars {
+                param (
+                    [string]$InputString
+                )
+                $InvalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+                $CleanedString = $InputString -replace "[$([regex]::Escape(($InvalidChars -join '')))]", '-'
+                return $CleanedString
+            }
+
+            Write-Output Remove-InvalidFileNameChars -InputString '${{ github.event.repository.merge_commit_title }}'
       - uses: actions/download-artifact@v4
         with:
           github-token: ${{ secrets.GH_PAT }}
           repository: neotene/spacebuild
-          name: 'spacebuild_${{ github.ref_name }}_${{ matrix.channel }}'
-          path: 'spacebuild_${{ github.ref_name }}_${{ matrix.channel }}'
+          name: 'spacebuild-${{ matrix.channel }}'
+          path: 'spacebuild-${{ steps.file-name-creation.outputs.* }}-${{ matrix.channel }}'
       - uses: KikimoraGames/itch-publish@v0.0.3
         with:
           butlerApiKey: ${{secrets.BUTLER_API_KEY}}
-          gameData: 'spacebuild_${{ github.ref_name }}_${{ matrix.channel }}'
+          gameData: 'spacebuild-${{ steps.file-name-creation.outputs.* }}-${{ matrix.channel }}'
           itchUsername: ${{secrets.ITCHIO_USERNAME}}
           itchGameId: ${{ secrets.ITCHIO_GAME }}
           buildChannel: ${{ matrix.channel }}

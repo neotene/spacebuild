@@ -338,20 +338,23 @@ jobs:
         with:
           name: 'client-release-${{ matrix.channel }}'
           path: spacebuild
-      - name: Zip
-        uses: montudor/action-zip@v1
-        if: ${{ matrix.channel != 'webgl'}}
-        with:
-          args: 'zip -qq -r release-${{ matrix.channel }}.zip spacebuild'
+    #   - name: Zip
+    #     uses: montudor/action-zip@v1
+    #     if: ${{ matrix.channel != 'webgl'}}
+    #     with:
+    #       args: 'zip -qq -r release-${{ matrix.channel }}.zip spacebuild'
+      
+
       - name: Upload Artifact
-        if: ${{ matrix.channel != 'webgl'}}
+        # if: ${{ matrix.channel != 'webgl'}}
         uses: actions/upload-artifact@v4
         with:
-          name: 'release-${{ matrix.channel }}'
-          path: 'release-${{ matrix.channel }}.zip'
-      - name: Upload Artifact
-        if: ${{ matrix.channel == 'webgl'}}
-        uses: actions/upload-artifact@v4
-        with:
-          name: 'spacebuild_${{ github.ref_name }}_${{ matrix.channel }}'
+          name: 'spacebuild-${{ matrix.channel }}'
+        #   path: 'release-${{ matrix.channel }}.zip'
           path: spacebuild/*
+    #   - name: Upload Artifact
+    #     if: ${{ matrix.channel == 'webgl'}}
+    #     uses: actions/upload-artifact@v4
+    #     with:
+    #       name: 'spacebuild-${{ steps.file-name-creation.outputs.* }}-${{ matrix.channel }}'
+    #       path: spacebuild/*
