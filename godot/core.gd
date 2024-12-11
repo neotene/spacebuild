@@ -130,8 +130,8 @@ func quit() -> void:
 	if server_process_state == ServerProcessState.RUNNING:
 		OS.kill(server["pid"])
 		server_process_state = ServerProcessState.NOT_RUNNING
+		server_logs_thread.wait_to_finish()
 
-	server_logs_thread.wait_to_finish()
 	get_tree().quit()
 
 func play_solo(play_mode) -> void:
@@ -151,7 +151,7 @@ func play_solo(play_mode) -> void:
 		server = OS.execute_with_pipe("./spacebuild-server", args)
 	if server.is_empty():
 		printerr("Failed to run server")
-		ui.error_placeholder.set_text("Local server failure")
+		ui.error_placeholder.set_text("Local server not found or could not be executed")
 		ui.play_button.set_disabled(false)
 		return
 	server_process_state = ServerProcessState.RUNNING
