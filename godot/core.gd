@@ -100,7 +100,7 @@ func _process(_delta: float) -> void:
 		var socket_state = socket.get_ready_state()
 		if socket_state == WebSocketPeer.STATE_OPEN:
 			network_state = NetworkState.AUTHENTICATING
-			login_hash["Login"] = ui.login_field.get_text()
+			login_hash["Login"]["nickname"] = ui.login_field.get_text()
 			socket.send_text(JSON.stringify(login_hash))
 		elif socket_state == WebSocketPeer.STATE_CLOSING:
 			socket.poll()
