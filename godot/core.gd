@@ -82,7 +82,7 @@ func play_solo(play_mode) -> String:
 		
 	assert(!world_text.is_empty())
 	var args = ["0", "--no-input", "--instance", ProjectSettings.globalize_path("user://%s.spdb" % world_text)]
-	if !OS.has_feature("standalone"):
+	if !OS.has_feature("release"):
 		server_pid = OS.create_process("../target/debug/spacebuild-server", args, true)
 	else:
 		server_pid = OS.create_process("./spacebuild-server", args)

@@ -41,7 +41,7 @@ func _ready() -> void:
 	refresh(welcome_state)
 	
 	if OS.has_feature("web"):
-		solo_tab.set_visible(false)
+		gamemode_tabs.remove_child(solo_tab)
 
 func refresh(dest_ui_welcome_state) -> void:
 	if core.state == core.State.WELCOME:
