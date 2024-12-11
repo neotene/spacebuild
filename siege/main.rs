@@ -17,15 +17,22 @@ struct Args {
     #[arg(value_name = "PORT", default_value_t = 2567)]
     port: u16,
 
-    #[arg(long, default_value = "spacebuild", value_name = "REGEX")]
-    trace_filter: String,
-
     #[arg(short,
         long,
         value_name = "CA_CERT_PATH",
         num_args(0..=1)
     )]
     tls: Option<Option<String>>,
+
+    #[arg(long, default_value = "spacebuild::(.*)", value_name = "REGEX")]
+    trace_filter: String,
+
+    #[arg(
+        long,
+        default_value = "INFO",
+        value_name = "TRACE|DEBUG|INFO|WARN|ERROR"
+    )]
+    trace_level: String,
 }
 
 #[tokio::main]

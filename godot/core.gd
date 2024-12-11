@@ -52,7 +52,6 @@ func _process(_delta: float) -> void:
 			print("Closing")
 			pass
 		elif socket_state == WebSocketPeer.STATE_CLOSED:
-			#network_state = NetworkState.WELCOME
 			var code = socket.get_close_code()
 			var reason = socket.get_close_reason()
 			var error_str = "Could not connect"
@@ -61,7 +60,6 @@ func _process(_delta: float) -> void:
 			ui.error_placeholder.set_text(error_str)
 			print("WebSocket closed with code: %d, reason %s. Clean: %s" % [code, reason, code != -1])
 			network_state = NetworkState.IDLE
-			#set_process(false) # Stop processing.
 
 	if network_state == NetworkState.AUTHENTICATING:
 		socket.poll()

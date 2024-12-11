@@ -92,7 +92,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 ";
 
     pub fn before_all() {
-        trace::init(Some("spacebuild(.*)".to_string()));
+        trace::init(Some("(.*)".to_string()));
         info!("Timeout is {}s", TIMEOUT_DURATION);
     }
 
