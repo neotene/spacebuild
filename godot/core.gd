@@ -1,7 +1,7 @@
 extends Node
 
 enum State {INIT, WELCOME, WAITING_PORT, LOADING, PLAYING}
-enum NetworkState {IDLE, CONNECTING, AUTHENTICATING}
+enum NetworkState {IDLE, CONNECTING, AUTHENTICATING, WAITING_GAMEINFO}
 enum ServerProcessState {NOT_RUNNING, RUNNING, READY}
 enum PlaySoloMode {CREATION, JOIN}
 
@@ -45,12 +45,12 @@ func _server_logs():
 			mutex.lock()
 			server_port = int(port_str)
 			mutex.unlock()
-		print(stderr_line)
+		print("Server says: [%s]" % stderr_line)
 		if !OS.has_feature("release"):
 			server_logs.call_deferred("append_text", stderr_line)
 			server_logs.call_deferred("newline")
 
-func refresh(to_state) -> void:
+func refresh(to_state, to_network_state) -> void:
 	#ui.error_placeholder.set_text("Connecting...")
 	$"../2D/UI".set_visible(to_state == State.WELCOME)
 	$"../2D/Title".set_visible(to_state == State.WELCOME)
@@ -61,6 +61,7 @@ func refresh(to_state) -> void:
 	elif to_state == State.LOADING:
 		$"../2D/Loading".set_text("Connecting...")
 	state = to_state
+	network_state = to_network_state
 
 func _process(_delta: float) -> void:
 	if state == State.INIT:
@@ -86,52 +87,62 @@ func _process(_delta: float) -> void:
 				printerr("Could not connect")
 				ui.error_placeholder.set_text("Could not connect")
 				ui.play_button.set_disabled(false)
-				refresh(State.WELCOME)
+				refresh(State.WELCOME, network_state)
 				return 
 			
-			refresh(State.LOADING)
-			network_state = NetworkState.CONNECTING
+			refresh(State.LOADING, NetworkState.CONNECTING)
 
 
 	if server_process_state == ServerProcessState.RUNNING:
 		if !OS.is_process_running(server["pid"]):
 			server_process_state = ServerProcessState.NOT_RUNNING
-			refresh(State.WELCOME)
+			refresh(State.WELCOME, network_state)
 			server_logs_thread.wait_to_finish()
 
-	if network_state == NetworkState.CONNECTING:
-		socket.poll()
-		var socket_state = socket.get_ready_state()
-		if socket_state == WebSocketPeer.STATE_OPEN:
-			network_state = NetworkState.AUTHENTICATING
-			login_hash["Login"]["nickname"] = ui.login_field.get_text()
-			socket.send_text(JSON.stringify(login_hash))
-		elif socket_state == WebSocketPeer.STATE_CLOSING:
+		if network_state != NetworkState.IDLE:
 			socket.poll()
-			print("Closing")
-			pass
-		elif socket_state == WebSocketPeer.STATE_CLOSED:
-			var code = socket.get_close_code()
-			var reason = socket.get_close_reason()
-			var error_str = "Could not connect"
-			if !reason.is_empty():
-				error_str += ": %s" % reason
-			ui.error_placeholder.set_text(error_str)
-			print("WebSocket closed with code: %d, reason %s. Clean: %s" % [code, reason, code != -1])
-			network_state = NetworkState.IDLE
+			var socket_state = socket.get_ready_state()
+			if socket_state == WebSocketPeer.STATE_CLOSING:
+				socket.poll()
+				print("Closing")
+				pass
+			elif socket_state == WebSocketPeer.STATE_CLOSED:
+				var code = socket.get_close_code()
+				var reason = socket.get_close_reason()
+				#var error_str = "Could not connect"
+				#if !reason.is_empty():
+					#error_str += ": %s" % reason
+				#ui.error_placeholder.set_text(error_str)
+				print("WebSocket closed with code: %d, reason %s. Clean: %s" % [code, reason, code != -1])
+				network_state = NetworkState.IDLE
 
-	if network_state == NetworkState.AUTHENTICATING:
-		socket.poll()
-		while socket.get_available_packet_count():
-			var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
-			print(variant)
-	
+			if network_state == NetworkState.CONNECTING:
+				if socket_state == WebSocketPeer.STATE_OPEN:
+					network_state = NetworkState.AUTHENTICATING
+					login_hash["Login"]["nickname"] = ui.login_field.get_text()
+					socket.send_text(JSON.stringify(login_hash))
+
+			if network_state == NetworkState.AUTHENTICATING:
+				while socket.get_available_packet_count():
+					var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
+					print("Received: [%s]" % variant)
+					if variant["success"] == false:
+						ui.error_placeholder.set_text("Authentication failed: %s" % variant["message"])
+						socket.close()
+					else:
+						refresh(State.PLAYING, NetworkState.WAITING_GAMEINFO)
+						
+
 func quit() -> void:
+	print("Quit called")
 	if server_process_state == ServerProcessState.RUNNING:
+		print("Killing server")
 		OS.kill(server["pid"])
 		server_process_state = ServerProcessState.NOT_RUNNING
+		print("Waiting threads")
 		server_logs_thread.wait_to_finish()
 
+	print("Quitting now")
 	get_tree().quit()
 
 func play_solo(play_mode) -> void:
@@ -158,7 +169,7 @@ func play_solo(play_mode) -> void:
 	server_logs_thread = Thread.new()
 	server_logs_thread.start(_server_logs)
 	server_uri =  "ws://localhost"
-	refresh(State.WAITING_PORT)
+	refresh(State.WAITING_PORT, network_state)
 
 func play_online() -> void:
 	login = ui.login_field.get_text()
@@ -180,4 +191,4 @@ func play_online() -> void:
 	
 	server_uri = "%s://%s" % [protocol_str, host_str]
 	server_port = int(port_str)
-	refresh(State.WAITING_PORT)
+	refresh(State.WAITING_PORT, network_state)
