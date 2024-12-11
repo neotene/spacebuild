@@ -25,7 +25,11 @@ var server_uri: String = ""
 
 @onready var ui = $"../2D/UI"
 var regex = RegEx.new()
-		
+
+func _notification(what):
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		quit()
+
 func _ready() -> void:
 	regex.compile("^.*Server loop starts, listenning on (\\d+)$")
 
@@ -125,6 +129,9 @@ func _process(_delta: float) -> void:
 func quit() -> void:
 	if server_process_state == ServerProcessState.RUNNING:
 		OS.kill(server["pid"])
+		server_process_state = ServerProcessState.NOT_RUNNING
+
+	server_logs_thread.wait_to_finish()
 	get_tree().quit()
 
 func play_solo(play_mode) -> void:
