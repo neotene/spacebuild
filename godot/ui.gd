@@ -64,13 +64,13 @@ func refresh(dest_ui_welcome_state) -> void:
 	welcome_state = dest_ui_welcome_state
 
 func _create_button_pressed():
-	core.play(core.PlayMode.SOLO_CREATION)
+	core.play_solo(core.PlayMode.CREATION)
 
 func _play_button_pressed():
 	if welcome_state == WelcomeState.ONLINE:
-		core.play(core.PlayMode.ONLINE)
+		core.play_online()
 	elif welcome_state == WelcomeState.SOLO:
-		core.play(core.PlayMode.SOLO_JOIN)
+		core.play_solo(core.PlaySoloMode.JOIN)
 	else:
 		assert(false)
 
