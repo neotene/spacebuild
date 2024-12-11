@@ -60,7 +60,7 @@ jobs:
           esac
 
 
-          godot --headless --verbose --export-release "${{ matrix.channel }}"
+          godot --headless --verbose --export-debug "${{ matrix.channel }}"
           "$EXPORT_FILE"
 
   build-debug:
