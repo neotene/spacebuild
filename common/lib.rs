@@ -12,7 +12,7 @@ pub mod trace {
         let target_regex_str = if let Some(filter) = maybe_filter {
             filter
         } else {
-            format!("spacebuild::(.*)")
+            format!("(.*)")
         };
 
         let mut binding = env_logger::builder();

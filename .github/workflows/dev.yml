@@ -1,4 +1,4 @@
-name: Build|Tests||Package
+name: Build & Tests
 'on':
   pull_request:
     branches: dev

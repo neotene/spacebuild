@@ -1,9 +1,7 @@
-name: Publish
-on:
-  pull_request:
+name: Siege & Publish
+'on':
+  push:
     branches: release
-    types:
-      - closed
 
 jobs:
   build-release:
@@ -241,7 +239,6 @@ jobs:
     #       path: spacebuild/*
 
   publish-itchio:
-    if: github.event.pull_request.merged == true
     name: Publish ItchIO
     strategy:
       matrix:
