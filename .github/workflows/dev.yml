@@ -9,6 +9,60 @@ name: Build & Tests
     types: [checks_requested]
 
 jobs:
+  clients-export:
+    name: Godot Clients Export
+    runs-on: ubuntu-24.04
+    env:
+      GODOT_VERSION: 4.3
+      EXPORT_NAME: spacebuild
+      PROJECT_PATH: godot
+    strategy:
+      matrix:
+        channel:
+          - windows
+          - macos
+          - linux
+          - webgl
+    container:
+      image: 'barichello/godot-ci:4.3'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Setup
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mkdir -v -p ~/.config/
+          mv /root/.config/godot ~/.config/godot
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable \
+          ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -v -p build/${{ matrix.channel }}
+      - name: Build
+        run: >
+          EXPORT_DIR="$(readlink -f build/${{ matrix.channel }})"
+
+          cd $PROJECT_PATH
+
+
+          case "${{ matrix.channel }}" in
+
+          windows) EXPORT_FILE="$EXPORT_DIR/$EXPORT_NAME.exe" ;;
+
+          linux)   EXPORT_FILE="$EXPORT_DIR/$EXPORT_NAME.x86_64" ;;
+
+          macos)   EXPORT_FILE="$EXPORT_DIR/$EXPORT_NAME.zip" ;;
+
+          webgl)   EXPORT_FILE="$EXPORT_DIR/index.html" ;;
+
+          *) echo "Unsupported channel: ${{ matrix.channel }}" && exit 1 ;;
+
+          esac
+
+
+          godot --headless --verbose --export-release "${{ matrix.channel }}"
+          "$EXPORT_FILE"
+
   build-debug:
     name: Build Lib/Tests Debug
     strategy:
@@ -128,3 +182,11 @@ jobs:
         env:
           RUST_LOG: INFO
           TMPDIR: ./
+
+  dev-mr-report:
+    name: Dev MR Report
+    needs: [tests-game, tests-instance, clients-export]
+    runs-on: ubuntu-latest
+    steps:
+        - name: Report
+          run: echo REPORT

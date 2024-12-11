@@ -240,6 +240,7 @@ jobs:
 
   publish-itchio:
     name: Publish ItchIO
+    needs: bundle
     strategy:
       matrix:
         channel:
