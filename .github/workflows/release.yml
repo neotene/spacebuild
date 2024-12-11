@@ -1,131 +1,11 @@
-name: Build|Tests||Package
-'on':
+name: Publish
+on:
   pull_request:
-    branches: dev
+    branches: release
     types:
-      - opened
-      - synchronize
+      - closed
 
 jobs:
-  build-debug:
-    name: Build Lib/Tests Debug
-    strategy:
-      matrix:
-        os:
-          - ubuntu-24.04
-          - windows-2019
-          - macos-15
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: 'Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}'
-        uses: actions/checkout@master
-      - name: Build Library Debug
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: '-p spacebuild --lib'
-      - name: Build Integration Tests Debug
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: '-p spacebuild --tests'
-      - name: Bundle Tests Binaries
-        shell: pwsh
-        run: >
-          $cargoOutputPath = "cargo_out.txt"
-
-          $targetDir = "tests_bins"
-
-          $cargoProcess = Start-Process -FilePath "cargo" -ArgumentList "test",
-          "--no-run" `
-              -RedirectStandardError $cargoOutputPath -NoNewWindow -Wait -PassThru
-          if ($cargoProcess.ExitCode -ne 0 -or -not (Test-Path $cargoOutputPath)
-          -or -not (Get-Content $cargoOutputPath)) { exit 1 }
-
-          $binaryPaths = Get-Content $cargoOutputPath | Select-String -Pattern
-          'Executable.*\((.+?)\)' | ForEach-Object { $_.Matches.Groups[1].Value
-          }
-
-          if (-not $binaryPaths) { exit 1 }
-
-          if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path
-          $targetDir | Out-Null }
-
-          foreach ($binaryPath in $binaryPaths) {
-              if (-not (Test-Path $binaryPath)) { exit 1 }
-              $basename = [System.IO.Path]::GetFileNameWithoutExtension($binaryPath).Split('-')[0]
-              Copy-Item -Path $binaryPath -Destination (Join-Path $targetDir $basename) -Force
-          }
-      - name: Upload Test Binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: 'tests-${{matrix.os}}'
-          path: tests_bins
-  tests-instance:
-    name: Tests Instance
-    needs: build-debug
-    strategy:
-      matrix:
-        os:
-          - ubuntu-24.04
-          - windows-2019
-          - macos-15
-        case:
-          - case_01
-          - case_02
-          - case_03
-          - case_04
-          - case_05
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Get Test Binaries
-        uses: actions/download-artifact@v4
-        with:
-          name: 'tests-${{matrix.os}}'
-          path: tests_bins
-      - name: Chmod if necessary
-        if: ${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')}}
-        run: |
-          chmod +x tests_bins/instance
-      - name: Run Tests
-        run: 'tests_bins/instance ${{ matrix.case }}'
-        env:
-          RUST_LOG: INFO
-          TMPDIR: ./
-  tests-game:
-    name: Tests Game
-    needs: build-debug
-    strategy:
-      matrix:
-        os:
-          - ubuntu-24.04
-          - windows-2019
-          - macos-15
-        case:
-          - case_01
-          - case_02
-          - case_03
-          - case_04
-          - case_05
-          - case_06
-          - case_07
-          - case_08
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Get Test Binaries
-        uses: actions/download-artifact@v4
-        with:
-          name: 'tests-${{matrix.os}}'
-          path: tests_bins
-      - name: Chmod if necessary
-        if: ${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')}}
-        run: |
-          chmod +x tests_bins/game
-      - name: Run Tests
-        run: 'tests_bins/game ${{ matrix.case }}'
-        env:
-          RUST_LOG: INFO
-          TMPDIR: ./
   build-release:
     name: Build & Install Lib/Server/Siege Release
     strategy:
@@ -253,6 +133,7 @@ jobs:
           if ($exitCode1 -ne 0 -or $exitCode2 -ne 0) { exit 1 }
 
           exit 0
+
   clients-export:
     name: Godot Clients Export
     runs-on: ubuntu-24.04
@@ -312,6 +193,7 @@ jobs:
         with:
           name: 'client-release-${{matrix.channel}}'
           path: 'build/${{matrix.channel}}'
+
   bundle:
     name: Final Package Bundle
     runs-on: ubuntu-24.04
@@ -325,8 +207,6 @@ jobs:
     needs:
       - clients-export
       - siege
-      - tests-instance
-      - tests-game
     steps:
       - name: 'Get server-release-${{ matrix.channel }}'
         uses: actions/download-artifact@v4
@@ -359,3 +239,29 @@ jobs:
     #     with:
     #       name: 'spacebuild-${{ steps.file-name-creation.outputs.* }}-${{ matrix.channel }}'
     #       path: spacebuild/*
+
+  publish-itchio:
+    if: github.event.pull_request.merged == true
+    name: Publish ItchIO
+    strategy:
+      matrix:
+        channel:
+          - windows
+          - macos
+          - linux
+          - webgl
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Get package for ${{ matrix.channel }}
+        uses: actions/download-artifact@v4
+        with:
+          name: 'spacebuild-${{ matrix.channel }}'
+          path: 'spacebuild-${{ matrix.channel }}'
+
+      - uses: KikimoraGames/itch-publish@v0.0.3
+        with:
+          butlerApiKey: ${{secrets.BUTLER_API_KEY}}
+          gameData: 'spacebuild-${{ matrix.channel }}'
+          itchUsername: ${{secrets.ITCHIO_USERNAME}}
+          itchGameId: ${{ secrets.ITCHIO_GAME }}
+          buildChannel: ${{ matrix.channel }}
