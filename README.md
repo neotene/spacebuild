@@ -1,5 +1,5 @@
 # Space Build
 
-[![Build|Tests||Package](https://github.com/neotene/spacebuild/actions/workflows/check.yml/badge.svg)](https://github.com/neotene/spacebuild/actions/workflows/check.yml)
+[![Build & Tests](https://github.com/neotene/spacebuild/actions/workflows/dev.yml/badge.svg)](https://github.com/neotene/spacebuild/actions/workflows/dev.yml)
 
-[![Publish](https://github.com/neotene/spacebuild/actions/workflows/publish.yml/badge.svg)](https://github.com/neotene/spacebuild/actions/workflows/publish.yml)
+[![Siege & Publish](https://github.com/neotene/spacebuild/actions/workflows/release.yml/badge.svg)](https://github.com/neotene/spacebuild/actions/workflows/release.yml)

@@ -1,0 +1,191 @@
+name: Siege & Publish
+'on':
+  push:
+    branches: release
+
+jobs:
+  build-release:
+    name: Build & Install Lib/Server/Siege Release
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2019
+          - macos-15
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 'Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}'
+        uses: actions/checkout@master
+      - name: Build Library Release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild -r'
+      - name: Build Server Release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild-server -r'
+      - name: Build Siege Release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild-siege -r'
+      - name: Install SpaceBuild Server
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: '--path server --root .'
+      - name: Install SpaceBuild Siege
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: '--path siege --root .'
+      - name: 'Upload Server/Siege Release ${{matrix.os}}'
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'bins-release-${{ matrix.os }}'
+          path: bin/*
+
+  siege:
+    name: Run Siege Scenario
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2019
+          - macos-15
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 'Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}'
+        uses: actions/checkout@master
+      - name: 'Get server-release-${{ matrix.os }}'
+        uses: actions/download-artifact@v4
+        with:
+          name: 'bins-release-${{ matrix.os }}'
+          path: bin
+
+      - name: Create Crypto Files from Env
+        shell: pwsh
+        run: >
+          Out-File -FilePath cert.pem -InputObject
+          "${{vars.SPACEBUILD_SERVER_CERT }}"
+
+          Out-File -FilePath key.pem -InputObject "${{vars.SPACEBUILD_SERVER_KEY
+          }}"
+
+          Out-File -FilePath ca_cert.pem -InputObject
+          "${{vars.SPACEBUILD_CA_CERT }}"
+
+      - name: Chmod
+        if: ${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos') }}
+        run: chmod 755 bin/*
+      - name: Extend PATH
+        shell: pwsh
+        run: >
+          (Get-Item bin).FullName | Out-File -FilePath "$Env:GITHUB_PATH"
+          -Append
+
+      - name: Launch Server and Siege TLS
+        shell: pwsh
+        env:
+          RUST_LOG: INFO
+        run: >
+          $process1 = Start-Process -FilePath "spacebuild-server" -ArgumentList
+          "--no-input", "--tls", "cert.pem", "key.pem", "--stop-after", "30"
+          -NoNewWindow -PassThru
+
+          if (-not $process1) { exit 1 }
+
+          Start-Sleep -Seconds 5
+
+          $process2 = Start-Process -FilePath "spacebuild-siege" -ArgumentList
+          "--tls", "ca_cert.pem" -NoNewWindow -PassThru
+
+          if (-not $process2) { $process1.WaitForExit(); exit 1 }
+
+          $process2.WaitForExit()
+
+          $exitCode2 = $process2.ExitCode
+
+          $process1.WaitForExit()
+
+          $exitCode1 = $process1.ExitCode
+
+          if ($exitCode1 -ne 0 -or $exitCode2 -ne 0) { exit 1 }
+
+          exit 0
+
+      - shell: pwsh
+        id: get-channel
+        run: |
+            $channel = "${{ matrix.os }}" -split '-' | Select-Object -First 1
+            $extension = if ($channel -eq "windows") { ".exe" } else { "" }
+            "channel=$channel" | Out-File -FilePath $outputFilePath
+            "extension=$extension" | Out-File -FilePath $outputFilePath
+
+      - name: Upload Tested Server Bin
+        uses: actions/download-artifact@v4
+        with:
+            name: server-release-${{steps.get-channel.outputs.channel}}
+            path: bin/spacebuild-server${{steps.get-channel.outputs.extension}}
+
+  bundle:
+    name: Final Package Bundle
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        channel:
+          - windows
+          - macos
+          - linux
+          - webgl
+    needs:
+      - siege
+    steps:
+      - name: 'Get server-release-${{ matrix.channel }}'
+        uses: actions/download-artifact@v4
+        if: ${{ matrix.channel != 'webgl' }}
+        with:
+          name: 'server-release-${{ matrix.channel }}'
+          path: spacebuild
+
+      - name: 'Get client-release-${{ matrix.channel }}'
+        uses: dawidd6/action-download-artifact@v7
+        with:
+          name: 'client-release-${{ matrix.channel }}'
+          workflow: dev.yml
+          github_token: ${{ secrets.GH_PAT }}
+          path: spacebuild
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'spacebuild-${{ matrix.channel }}'
+          path: spacebuild/*
+
+  publish-itchio:
+    name: Publish ItchIO
+    needs: bundle
+    strategy:
+      matrix:
+        channel:
+          - windows
+          - macos
+          - linux
+          - webgl
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Get package for ${{ matrix.channel }}
+        uses: actions/download-artifact@v4
+        with:
+          name: 'spacebuild-${{ matrix.channel }}'
+          path: 'spacebuild-${{ matrix.channel }}'
+
+      - uses: KikimoraGames/itch-publish@v0.0.3
+        with:
+          butlerApiKey: ${{secrets.BUTLER_API_KEY}}
+          gameData: 'spacebuild-${{ matrix.channel }}'
+          itchUsername: ${{secrets.ITCHIO_USERNAME}}
+          itchGameId: ${{ secrets.ITCHIO_GAME }}
+          buildChannel: ${{ matrix.channel }}
