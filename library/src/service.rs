@@ -1,5 +1,5 @@
 use crate::game::instance::Instance;
-use crate::protocol::LoginInfo;
+use crate::protocol::AuthInfo;
 use crate::protocol::PlayerAction;
 use futures::SinkExt;
 use futures::StreamExt;
@@ -67,8 +67,8 @@ async fn serve_websocket(
                 let maybe_action: serde_json::Result<PlayerAction> =
                     serde_json::from_str(msg.as_str());
 
-                let mut login_info = LoginInfo {
-                    authenticated: false,
+                let mut login_info = AuthInfo {
+                    success: false,
                     message: "".to_string(),
                 };
 
@@ -92,7 +92,7 @@ async fn serve_websocket(
 
                             info!("Login success for {}", uuid);
 
-                            login_info.authenticated = true;
+                            login_info.success = true;
                             login_info.message = uuid.to_string();
                         }
                     } else {

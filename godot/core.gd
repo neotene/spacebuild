@@ -12,15 +12,27 @@ var login_hash = {
 	}
 }
 var login = ""
-var server_pid = -1;
+var server = null;
 var state = State.INIT
 var network_state = NetworkState.IDLE
 var server_process_state = ServerProcessState.NOT_RUNNING
+var server_logs_thread: Thread
+@onready var server_logs = $"../2D/Server" as RichTextLabel
 
 @onready var ui = $"../2D/UI"
 
 func _ready() -> void:
 	pass
+
+func _server_logs():
+	var pipe_err = server["stderr"] as FileAccess
+
+	while server_process_state == ServerProcessState.RUNNING:		
+		var stderr_line = pipe_err.get_line()
+		print(stderr_line)
+		if !OS.has_feature("release"):
+			server_logs.call_deferred("append_text", stderr_line)
+			server_logs.call_deferred("newline")
 
 func refresh(to_state) -> void:
 	#ui.error_placeholder.set_text("Connecting...")
@@ -35,10 +47,11 @@ func _process(_delta: float) -> void:
 		state = State.WELCOME
 		return
 
-	if server_process_state == ServerProcessState.RUNNING && !OS.is_process_running(server_pid):
-		server_pid = -1
-		server_process_state = ServerProcessState.NOT_RUNNING
-		refresh(State.WELCOME)
+	if server_process_state == ServerProcessState.RUNNING:
+		if !OS.is_process_running(server["pid"]):
+			server_process_state = ServerProcessState.NOT_RUNNING
+			refresh(State.WELCOME)
+			server_logs_thread.wait_to_finish()
 
 	if network_state == NetworkState.CONNECTING:
 		socket.poll()
@@ -64,11 +77,12 @@ func _process(_delta: float) -> void:
 	if network_state == NetworkState.AUTHENTICATING:
 		socket.poll()
 		while socket.get_available_packet_count():
-				print("Packet: %s" % socket.get_packet().get_string_from_utf8())
+			var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
+			print(variant)
 	
 func quit() -> void:
-	if server_pid != -1:
-		OS.kill(server_pid)
+	if server_process_state == ServerProcessState.RUNNING:
+		OS.kill(server["pid"])
 	get_tree().quit()
 
 func play_solo(play_mode) -> String:
@@ -83,15 +97,17 @@ func play_solo(play_mode) -> String:
 	assert(!world_text.is_empty())
 	var args = ["0", "--no-input", "--instance", ProjectSettings.globalize_path("user://%s.spdb" % world_text)]
 	if !OS.has_feature("release"):
-		server_pid = OS.create_process("../target/debug/spacebuild-server", args, true)
+		server = OS.execute_with_pipe("../target/debug/spacebuild-server", args)
 	else:
-		server_pid = OS.create_process("./spacebuild-server", args)
-	if server_pid == -1:
+		server = OS.execute_with_pipe("./spacebuild-server", args)
+	if server.is_empty():
 		printerr("Failed to run server")
 		ui.error_placeholder.set_text("Local server failure")
 		ui.play_button.set_disabled(false)
 		return ""
 	server_process_state = ServerProcessState.RUNNING
+	server_logs_thread = Thread.new()
+	server_logs_thread.start(_server_logs)
 	return "ws://localhost:2567"
 
 func play_online() -> String:
@@ -130,7 +146,7 @@ func play(play_mode) -> void:
 	socket = WebSocketPeer.new()
 	
 	var options = TLSOptions.client()
-	if ui.encrypted_switch.is_pressed():
+	if ui.welcome_state == ui.WelcomeState.ONLINE && ui.encrypted_switch.is_pressed():
 		var cert = X509Certificate.new()
 		if cert.load("ca_cert.pem") == OK:
 			options = TLSOptions.client(cert)

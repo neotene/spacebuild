@@ -36,8 +36,8 @@ pub struct PlayerInfo {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct LoginInfo {
-    pub(crate) authenticated: bool,
+pub struct AuthInfo {
+    pub(crate) success: bool,
     pub(crate) message: String,
 }
 

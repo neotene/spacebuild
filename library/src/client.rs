@@ -12,7 +12,7 @@ use crate::network::tcp::{connect, ClientStream};
 use crate::network::tls::ClientPki;
 
 use crate::{
-    protocol::{Login, LoginInfo, PlayerAction},
+    protocol::{AuthInfo, Login, PlayerAction},
     Result,
 };
 
@@ -120,7 +120,7 @@ impl Client {
 
         match response {
             Message::Text(response_str) => {
-                let login_info: LoginInfo = serde_json::from_str(&response_str).map_err(|err| {
+                let login_info: AuthInfo = serde_json::from_str(&response_str).map_err(|err| {
                     Error::DeserializeAuthenticationResponseError(err, response_str)
                 })?;
 
