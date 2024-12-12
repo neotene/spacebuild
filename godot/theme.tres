@@ -1,0 +1,82 @@
+[gd_resource type="Theme" load_steps=17 format=3 uid="uid://cmsn2tgdec3ib"]
+
+[ext_resource type="FontVariation" uid="uid://dvm1d77damo4j" path="res://main_font3.tres" id="1_jo0pi"]
+[ext_resource type="SystemFont" uid="uid://civw0kgqe3epd" path="res://main_font.tres" id="1_vbmw2"]
+[ext_resource type="StyleBox" uid="uid://cekwla30i44ly" path="res://button_normal.tres" id="2_hejea"]
+[ext_resource type="StyleBox" uid="uid://7h0rjg4mjgib" path="res://button_disabled.tres" id="2_s38xg"]
+[ext_resource type="StyleBox" uid="uid://di7vkfmol1hnp" path="res://tab_selected.tres" id="4_qleb1"]
+[ext_resource type="StyleBox" uid="uid://fb5ga2bpqeh7" path="res://tab_unselected.tres" id="5_hpg04"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0ey5w"]
+bg_color = Color(0.46743, 0.794959, 0.951925, 1)
+corner_radius_top_left = 45
+corner_radius_top_right = 45
+corner_radius_bottom_right = 45
+corner_radius_bottom_left = 45
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qialb"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_cp8hs"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ukjt1"]
+bg_color = Color(0.293774, 0.633428, 0.866805, 1)
+corner_radius_top_left = 45
+corner_radius_top_right = 45
+corner_radius_bottom_right = 45
+corner_radius_bottom_left = 45
+expand_margin_top = 2.0
+expand_margin_bottom = 2.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_vkw0y"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_seoma"]
+bg_color = Color(0.0509804, 0.117647, 0.176471, 0.8)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(0, 0, 0, 1)
+corner_radius_top_left = 45
+corner_radius_top_right = 45
+corner_radius_bottom_right = 45
+corner_radius_bottom_left = 45
+corner_detail = 20
+shadow_size = 30
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fr5fy"]
+bg_color = Color(0.0591633, 0.153409, 0.23069, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_enrha"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_eqlks"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0vxvh"]
+
+[resource]
+Button/fonts/font = ExtResource("1_jo0pi")
+Button/styles/disabled = ExtResource("2_s38xg")
+Button/styles/hover = SubResource("StyleBoxFlat_0ey5w")
+Button/styles/normal = ExtResource("2_hejea")
+CheckButton/styles/normal = SubResource("StyleBoxEmpty_qialb")
+Label/fonts/font = ExtResource("1_jo0pi")
+LineEdit/fonts/font = ExtResource("1_jo0pi")
+LineEdit/styles/focus = SubResource("StyleBoxEmpty_cp8hs")
+LineEdit/styles/normal = SubResource("StyleBoxFlat_ukjt1")
+LineEdit/styles/read_only = SubResource("StyleBoxEmpty_vkw0y")
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_seoma")
+TabBar/fonts/font = ExtResource("1_vbmw2")
+TabContainer/constants/side_margin = 30
+TabContainer/font_sizes/font_size = 20
+TabContainer/fonts/font = ExtResource("1_jo0pi")
+TabContainer/styles/panel = SubResource("StyleBoxFlat_fr5fy")
+TabContainer/styles/tab_focus = SubResource("StyleBoxEmpty_enrha")
+TabContainer/styles/tab_hovered = SubResource("StyleBoxEmpty_eqlks")
+TabContainer/styles/tab_selected = ExtResource("4_qleb1")
+TabContainer/styles/tab_unselected = ExtResource("5_hpg04")
+Tree/fonts/font = ExtResource("1_jo0pi")
+Tree/fonts/title_button_font = ExtResource("1_jo0pi")
+Tree/styles/panel = SubResource("StyleBoxEmpty_0vxvh")

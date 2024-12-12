@@ -1,4 +1,4 @@
-extends Node
+extends Control
 
 enum WelcomeState {SOLO, ONLINE}
 
@@ -6,21 +6,22 @@ var welcome_state = WelcomeState.SOLO
 var root = null
 var selected_world = null
 
-@onready var core = $"../../Core"
-@onready var worlds_tree = $"Modale/Welcome/GameMode/Solo/Worlds"
-@onready var ratio = $"Modale"
-@onready var solo_tab = $'Modale/Welcome/GameMode/Solo'
-@onready var login_field = $"Modale/Welcome/GameMode/Online/Login/LineEdit"
-@onready var play_button = $"Modale/Welcome/Actions/Play"
-@onready var quit_button = $"Modale/Welcome/Actions/Quit"
-@onready var world_field = $"Modale/Welcome/GameMode/Solo/WorldCreation/LineEdit"
-@onready var create_button = $"Modale/Welcome/GameMode/Solo/WorldCreation/Create"
-@onready var gamemode_tabs = $"Modale/Welcome/GameMode"
-@onready var background = $"Modale/Background"
-@onready var encrypted_switch = $"Modale/Welcome/GameMode/Online/Encrypted/CheckButton"
-@onready var error_placeholder = $"Modale/Welcome/Actions/ErrorPlaceholder"
-@onready var host_field = $"Modale/Welcome/GameMode/Online/Host/LineEdit"
-@onready var port_field = $"Modale/Welcome/GameMode/Online/Port/LineEdit"
+@onready var core = get_tree().get_first_node_in_group("core")
+@onready var worlds_tree = get_tree().get_first_node_in_group("worlds_tree")
+@onready var modale = get_tree().get_first_node_in_group("modale")
+@onready var solo_tab = get_tree().get_first_node_in_group("solo_tab")
+@onready var login_field = get_tree().get_first_node_in_group("login_field")
+@onready var play_button = get_tree().get_first_node_in_group("play_button")
+@onready var quit_button = get_tree().get_first_node_in_group("quit_button")
+@onready var world_field = get_tree().get_first_node_in_group("world_field")
+@onready var create_button = get_tree().get_first_node_in_group("create_button")
+@onready var gamemode_tabs = get_tree().get_first_node_in_group("gamemode_tabs")
+@onready var background = get_tree().get_first_node_in_group("background")
+@onready var encrypted_switch = get_tree().get_first_node_in_group("encrypted_switch")
+@onready var error_placeholder = get_tree().get_first_node_in_group("error_placeholder")
+@onready var host_field = get_tree().get_first_node_in_group("host_field")
+@onready var port_field = get_tree().get_first_node_in_group("port_field")
+@onready var screen_size = get_viewport().get_visible_rect().size
 
 func _ready() -> void:
 	root = worlds_tree.create_item()
@@ -101,8 +102,11 @@ func _on_world_changed(_text):
 	refresh(welcome_state)
 
 func _on_size_changed():
-	var screen_size = get_viewport().get_visible_rect().size
-	ratio.set_ratio(screen_size.x / screen_size.y)
+	var new_screen_size = get_viewport().get_visible_rect().size
+	#var ref = Vector2(1920, 1080)
+	var ref = screen_size
+	set_scale((new_screen_size / ref).clamp(Vector2.ONE * 0.1, Vector2.ONE * 1000))
+	screen_size = new_screen_size
 	
 func list_worlds():
 	var dir = DirAccess.open("user://")

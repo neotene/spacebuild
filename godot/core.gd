@@ -21,10 +21,10 @@ var mutex: Mutex = Mutex.new()
 var server_port = 0
 var server_uri: String = ""
 
-@onready var server_logs = $"../2D/Server" as RichTextLabel
+@onready var server_logs = get_tree().get_first_node_in_group("server_logs")
 
 
-@onready var ui = $"../2D/UI"
+@onready var ui = get_tree().get_first_node_in_group("ui")
 var regex = RegEx.new()
 
 func _notification(what):
@@ -53,14 +53,14 @@ func _server_logs():
 
 func refresh(to_state, to_network_state) -> void:
 	#ui.error_placeholder.set_text("Connecting...")
-	$"../2D/UI".set_visible(to_state == State.WELCOME)
-	$"../2D/Title".set_visible(to_state == State.WELCOME)
-	$"../2D/Loading".set_visible(to_state == State.WAITING_PORT
+	get_tree().get_first_node_in_group("modale").set_visible(to_state == State.WELCOME)
+	get_tree().get_first_node_in_group("title").set_visible(to_state == State.WELCOME)
+	get_tree().get_first_node_in_group("loading").set_visible(to_state == State.WAITING_PORT
 								 || to_state == State.LOADING)
 	if to_state == State.WAITING_PORT:
-		$"../2D/Loading".set_text("Wait please...")
+		get_tree().get_first_node_in_group("loading").set_text("Wait please...")
 	elif to_state == State.LOADING:
-		$"../2D/Loading".set_text("Connecting...")
+		get_tree().get_first_node_in_group("loading").set_text("Connecting...")
 	state = to_state
 	network_state = to_network_state
 
