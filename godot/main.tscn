@@ -96,6 +96,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
+dragger_visibility = 1
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome"]
 layout_mode = 2
@@ -106,13 +107,12 @@ theme_override_constants/margin_bottom = 0
 
 [node name="GameMode" type="TabContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer" groups=["gamemode_tabs"]]
 layout_mode = 2
-current_tab = 1
+current_tab = 0
 clip_tabs = false
 use_hidden_tabs_for_min_size = true
 tab_focus_mode = 0
 
 [node name="Solo" type="VBoxContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode" groups=["solo_tab"]]
-visible = false
 layout_mode = 2
 metadata/_tab_index = 0
 
@@ -146,6 +146,7 @@ theme_override_constants/margin_bottom = 10
 
 [node name="WorldCreation" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2"]
 layout_mode = 2
+dragger_visibility = 1
 
 [node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation"]
 layout_mode = 2
@@ -165,6 +166,7 @@ disabled = true
 text = "Create world"
 
 [node name="Online" type="VBoxContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode"]
+visible = false
 layout_mode = 2
 alignment = 1
 metadata/_tab_index = 1
@@ -220,7 +222,7 @@ theme_override_constants/margin_bottom = 5
 
 [node name="Encrypted" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins3"]
 layout_mode = 2
-split_offset = 100
+split_offset = 350
 dragger_visibility = 1
 
 [node name="Label" type="Label" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins3/Encrypted"]

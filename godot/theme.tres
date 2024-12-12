@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=16 format=3 uid="uid://dxkx538kc58lm"]
+[gd_resource type="Theme" load_steps=18 format=3 uid="uid://dxkx538kc58lm"]
 
 [ext_resource type="FontVariation" uid="uid://dvm1d77damo4j" path="res://main_font.tres" id="1_vbmw2"]
 [ext_resource type="StyleBox" uid="uid://csyvse4ysu4y6" path="res://button_normal.tres" id="2_hejea"]
@@ -7,7 +7,11 @@
 [ext_resource type="StyleBox" uid="uid://ctxr8xnw3g4yh" path="res://tab_selected.tres" id="4_qleb1"]
 [ext_resource type="StyleBox" uid="uid://b6x8blamta7m2" path="res://tab_unselected.tres" id="5_hpg04"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qialb"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_rkcrw"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_pcms8"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_nmy0l"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_cp8hs"]
 
@@ -56,9 +60,10 @@ Button/fonts/font = ExtResource("1_vbmw2")
 Button/styles/disabled = ExtResource("2_s38xg")
 Button/styles/hover = ExtResource("3_rsg6v")
 Button/styles/normal = ExtResource("2_hejea")
-CheckButton/styles/hover = null
-CheckButton/styles/hover_pressed = null
-CheckButton/styles/normal = SubResource("StyleBoxEmpty_qialb")
+Button/styles/pressed = ExtResource("2_s38xg")
+CheckButton/styles/hover = SubResource("StyleBoxEmpty_rkcrw")
+CheckButton/styles/normal = SubResource("StyleBoxEmpty_pcms8")
+CheckButton/styles/pressed = SubResource("StyleBoxEmpty_nmy0l")
 Label/fonts/font = ExtResource("1_vbmw2")
 LineEdit/font_sizes/font_size = 13
 LineEdit/fonts/font = ExtResource("1_vbmw2")
@@ -75,6 +80,7 @@ TabContainer/styles/tab_focus = SubResource("StyleBoxEmpty_enrha")
 TabContainer/styles/tab_hovered = ExtResource("4_qleb1")
 TabContainer/styles/tab_selected = ExtResource("4_qleb1")
 TabContainer/styles/tab_unselected = ExtResource("5_hpg04")
+Tree/constants/children_hl_line_width = 0
 Tree/fonts/font = ExtResource("1_vbmw2")
 Tree/fonts/title_button_font = ExtResource("1_vbmw2")
 Tree/styles/panel = SubResource("StyleBoxEmpty_0vxvh")
