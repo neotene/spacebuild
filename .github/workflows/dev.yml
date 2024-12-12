@@ -1,0 +1,263 @@
+name: Build & Tests
+'on':
+  pull_request:
+    branches: dev
+    types:
+      - opened
+      - synchronize
+  push:
+    branches: dev
+    paths:
+        .github/workflows/dev.yml
+
+  merge_group:
+    types: [checks_requested]
+
+jobs:
+  build-release:
+    name: Build & Install Lib/Server/Siege Release
+    strategy:
+        matrix:
+          os:
+            - ubuntu-24.04
+            - windows-2019
+            - macos-15
+    runs-on: ${{ matrix.os }}
+    steps:
+        - name: 'Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}'
+          uses: actions/checkout@master
+        - name: Build Library Release
+          uses: actions-rs/cargo@v1
+          with:
+            command: build
+            args: '-p spacebuild -r'
+        - name: Build Server Release
+          uses: actions-rs/cargo@v1
+          with:
+            command: build
+            args: '-p spacebuild-server -r'
+        - name: Build Siege Release
+          uses: actions-rs/cargo@v1
+          with:
+                command: build
+                args: '-p spacebuild-siege -r'
+        - name: Install SpaceBuild Server
+          uses: actions-rs/cargo@v1
+          with:
+                command: install
+                args: '--path server --root .'
+        - name: Install SpaceBuild Siege
+          uses: actions-rs/cargo@v1
+          with:
+                command: install
+                args: '--path siege --root .'
+        - name: 'Upload Server/Siege Release ${{matrix.os}}'
+          uses: actions/upload-artifact@v4
+          with:
+                name: 'bins-release-${{ matrix.os }}-${{ github.sha }}'
+                path: bin/*
+                if-no-files-found: error
+
+  clients-export:
+    name: Godot Clients Export
+    runs-on: ubuntu-24.04
+    env:
+      GODOT_VERSION: 4.3
+      EXPORT_NAME: spacebuild
+      PROJECT_PATH: godot
+    strategy:
+      matrix:
+        channel:
+          - windows
+          - macos
+          - linux
+          - webgl
+    container:
+      image: 'barichello/godot-ci:4.3'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mkdir -v -p ~/.config/
+          mv /root/.config/godot ~/.config/godot
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable \
+          ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -v -p "${PROJECT_PATH}/build/${{ matrix.channel }}"
+
+      - name: Build
+        id: build-client
+        run: |
+            EXPORT_DIR="build/${{ matrix.channel }}"
+
+            cd "$PROJECT_PATH" || exit
+
+            case "${{ matrix.channel }}" in
+                "windows")
+                    EXPORT_FILE="$EXPORT_DIR/${EXPORT_NAME}.exe"
+                    echo "target=$EXPORT_FILE" >> $GITHUB_OUTPUT
+                    ;;
+                "linux")
+                    EXPORT_FILE="$EXPORT_DIR/${EXPORT_NAME}.x86_64"
+                    echo "target=$EXPORT_FILE" >> $GITHUB_OUTPUT
+                    ;;
+                "macos")
+                    EXPORT_FILE="$EXPORT_DIR/${EXPORT_NAME}.zip"
+                    echo "target=$EXPORT_FILE" >> $GITHUB_OUTPUT
+                    ;;
+                "webgl")
+                    EXPORT_FILE="$EXPORT_DIR/index.html"
+                    echo "target=$EXPORT_DIR/*" >> $GITHUB_OUTPUT
+                    ;;
+                *)
+                    echo "Canal inconnu : ${{ matrix.channel }}"
+                    exit 1
+                    ;;
+            esac
+
+            echo "$EXPORT_FILE"
+            godot --headless --verbose --export-release "${{ matrix.channel }}" "$EXPORT_FILE"
+
+      - name: Upload Clients
+        uses: actions/upload-artifact@v4
+        with:
+            name: 'client-release-${{matrix.channel}}-${{ github.sha }}'
+            path: "${{ env.PROJECT_PATH }}/${{ steps.build-client.outputs.target }}"
+            if-no-files-found: error
+
+  build-debug:
+    name: Build Lib/Tests Debug
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2019
+          - macos-15
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 'Checkout ${{ github.repositoryUrl }} ${{ github.base_ref }}'
+        uses: actions/checkout@master
+      - name: Build Library Debug
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild --lib'
+      - name: Build Integration Tests Debug
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '-p spacebuild --tests'
+      - name: Bundle Tests Binaries
+        shell: pwsh
+        run: >
+          $cargoOutputPath = "cargo_out.txt"
+
+          $targetDir = "tests_bins"
+
+          $cargoProcess = Start-Process -FilePath "cargo" -ArgumentList "test",
+          "--no-run" `
+              -RedirectStandardError $cargoOutputPath -NoNewWindow -Wait -PassThru
+          if ($cargoProcess.ExitCode -ne 0 -or -not (Test-Path $cargoOutputPath)
+          -or -not (Get-Content $cargoOutputPath)) { exit 1 }
+
+          $binaryPaths = Get-Content $cargoOutputPath | Select-String -Pattern
+          'Executable.*\((.+?)\)' | ForEach-Object { $_.Matches.Groups[1].Value
+          }
+
+          if (-not $binaryPaths) { exit 1 }
+
+          if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path
+          $targetDir | Out-Null }
+
+          foreach ($binaryPath in $binaryPaths) {
+              if (-not (Test-Path $binaryPath)) { exit 1 }
+              $basename = [System.IO.Path]::GetFileNameWithoutExtension($binaryPath).Split('-')[0]
+              Copy-Item -Path $binaryPath -Destination (Join-Path $targetDir $basename) -Force
+          }
+      - name: Upload Test Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'tests-${{matrix.os}}'
+          path: tests_bins
+          if-no-files-found: error
+
+  tests-instance:
+    name: Tests Instance
+    needs: build-debug
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2019
+          - macos-15
+        case:
+          - case_01
+          - case_02
+          - case_03
+          - case_04
+          - case_05
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Get Test Binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: 'tests-${{matrix.os}}'
+          path: tests_bins
+      - name: Chmod if necessary
+        if: ${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')}}
+        run: |
+          chmod +x tests_bins/instance
+      - name: Run Tests
+        run: 'tests_bins/instance ${{ matrix.case }}'
+        env:
+          RUST_LOG: INFO
+          TMPDIR: ./
+
+
+  tests-game:
+    name: Tests Game
+    needs: build-debug
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2019
+          - macos-15
+        case:
+          - case_01
+          - case_02
+          - case_03
+          - case_04
+          - case_05
+          - case_06
+          - case_07
+          - case_08
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Get Test Binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: 'tests-${{matrix.os}}'
+          path: tests_bins
+      - name: Chmod if necessary
+        if: ${{ contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')}}
+        run: |
+          chmod +x tests_bins/game
+      - name: Run Tests
+        run: 'tests_bins/game ${{ matrix.case }}'
+        env:
+          RUST_LOG: INFO
+          TMPDIR: ./
+
+
+  dev-mr-report:
+    name: Dev MR Report
+    needs: [tests-game, tests-instance, clients-export, build-release]
+    runs-on: ubuntu-latest
+    steps:
+        - name: Report
+          run: echo REPORT
