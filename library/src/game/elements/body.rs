@@ -2,7 +2,9 @@ use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::game::{element::Element, repr::Coords};
+use crate::game::{element::Element, repr::GalacticCoords};
+
+use super::move_from_local_delta;
 
 #[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum BodyType {
@@ -27,12 +29,12 @@ pub struct Body {
     pub uuid: Uuid,
     pub synced: bool,
     pub body_type: BodyType,
-    pub coords: Coords,
+    pub coords: GalacticCoords,
     pub velocity: Vector3<f32>,
 }
 
 impl Body {
-    pub fn new(body_type: BodyType, coords: Coords) -> Body {
+    pub fn new(body_type: BodyType, coords: GalacticCoords) -> Body {
         Self {
             uuid: Uuid::new_v4(),
             synced: false,
@@ -44,12 +46,39 @@ impl Body {
 }
 
 impl Element for Body {
-    fn from_sqlite_row(_row: &sqlx::sqlite::SqliteRow) -> crate::Result<impl Element> {
-        Ok(Body::new(BodyType::Asteroid, Coords::new(0., 0., 0)))
+    fn get_coords(&self) -> &GalacticCoords {
+        &self.coords
     }
 
-    fn get_coords(&self) -> &crate::game::repr::Coords {
-        &self.coords
+    fn from_sqlite_row(_row: &sqlx::sqlite::SqliteRow) -> crate::Result<impl Element> {
+        Ok(Body::new(
+            BodyType::Asteroid,
+            GalacticCoords::new(0., 0., 0.),
+        ))
+    }
+
+    // fn get_global_coords(&self) -> &crate::game::repr::GalacticCoords {
+    //     &self.coords
+    // }
+
+    // fn get_local_coords(&self) -> &crate::game::repr::SystemCoords {
+    //     &self.local_coords
+    // }
+
+    // fn move_global(&mut self, delta: &GalacticCoords) {
+    //     use scilib::coordinate::*;
+
+    //     let car = cartesian::Cartesian::from(
+    //         self.local_coords.x,
+    //         self.local_coords.y,
+    //         self.local_coords.z,
+    //     );
+
+    //     let sph = spherical::Spherical::from_degree(1.2, 30, 60.2);
+    // }
+
+    fn move_local(&mut self, delta: &crate::game::repr::SystemCoords) {
+        self.coords = move_from_local_delta(&self.coords, delta);
     }
 
     fn update(&mut self, _delta: f32) -> bool {

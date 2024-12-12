@@ -12,7 +12,7 @@ extern crate downcast;
 use super::element::Element;
 use super::elements::player::Player;
 use super::elements::system::System;
-use super::repr::Coords;
+use super::repr::GalacticCoords;
 
 type RefType<T> = Box<T>;
 type ElementsCollection = Vec<RefType<dyn Element>>;
@@ -25,11 +25,11 @@ unsafe impl Send for Instance {}
 unsafe impl Sync for Instance {}
 
 impl Instance {
-    pub const CREATE_TABLE_PLAYER_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS Player (uuid TEXT PRIMARY KEY, angle_1 REAL, angle_2 REAL, distance INTEGER, dir_x REAL, dir_y REAL, dir_z REAL, speed REAL, nickname TEXT, own_system TEXT, current_system TEXT)";
+    pub const CREATE_TABLE_PLAYER_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS Player (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL, dir_x REAL, dir_y REAL, dir_z REAL, speed REAL, nickname TEXT, own_system TEXT, current_system TEXT)";
 
-    pub const CREATE_TABLE_SYSTEM_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS System (uuid TEXT PRIMARY KEY, angle_1 REAL, angle_2 REAL, distance INTEGER, center_type INT)";
+    pub const CREATE_TABLE_SYSTEM_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS System (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL)";
 
-    pub const CREATE_TABLE_BODY_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS Body (uuid TEXT PRIMARY KEY, angle_1 REAL, angle_2 REAL, distance INTEGER, speed REAL, type INT, system_owner TEXT, FOREIGN KEY(system_owner) REFERENCES System(uuid))";
+    pub const CREATE_TABLE_BODY_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS Body (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL, speed REAL, type INT, system_owner TEXT, FOREIGN KEY(system_owner) REFERENCES System(uuid))";
 
     pub async fn from_path(db_path: &'_ str) -> Result<Instance> {
         if !Path::new(db_path).exists() {
@@ -92,6 +92,23 @@ impl Instance {
         }
 
         "INSERT INTO ".to_string() + results.last().unwrap().1 + " VALUES "
+    }
+
+    fn get_mut_element_of<T>(&mut self, uuid: Uuid) -> Option<&mut T>
+    where
+        T: Element,
+    {
+        for element in &mut self.elements {
+            match element.downcast_mut::<T>() {
+                Ok(true_element) => {
+                    if true_element.get_uuid() == uuid {
+                        return Some(true_element);
+                    }
+                }
+                Err(_err) => {}
+            }
+        }
+        None
     }
 
     fn get_element_of<T>(&self, uuid: Uuid) -> Option<&T>
@@ -173,6 +190,10 @@ impl Instance {
 
     pub fn get_system(&self, uuid: Uuid) -> Option<&System> {
         self.get_element_of(uuid)
+    }
+
+    pub fn get_mut_player(&mut self, uuid: Uuid) -> Option<&mut Player> {
+        self.get_mut_element_of(uuid)
     }
 
     pub fn get_player(&self, uuid: Uuid) -> Option<&Player> {
@@ -269,7 +290,8 @@ impl Instance {
                 instance.add_system(player_system);
                 instance.save_systems().await?;
 
-                let player = Player::new(Coords::default(), nickname.clone(), player_sys_uuid);
+                let player =
+                    Player::new(GalacticCoords::default(), nickname.clone(), player_sys_uuid);
                 let uuid = player.get_uuid();
                 instance.add_player(player);
                 instance.save_players().await?;

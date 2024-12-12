@@ -8,7 +8,7 @@ pub use crate::game::elements::body::Body;
 pub use crate::game::elements::player::Player;
 pub use crate::game::elements::system::System;
 
-use super::repr::Coords;
+use super::repr::{GalacticCoords, SystemCoords};
 
 pub trait Element: Any {
     fn update(&mut self, delta: f32) -> bool;
@@ -19,7 +19,10 @@ pub trait Element: Any {
     fn get_uuid(&self) -> Uuid;
     fn is_synced(&self) -> bool;
     fn set_synced(&mut self, is_synced: bool);
-    fn get_coords(&self) -> &Coords;
+    fn get_coords(&self) -> &GalacticCoords;
+    // fn get_local_coords(&self) -> &SystemCoords;
+    // fn move_global(&mut self, global_coords: &GalacticCoords);
+    fn move_local(&mut self, local_coords: &SystemCoords);
 }
 
 downcast!(dyn Element);

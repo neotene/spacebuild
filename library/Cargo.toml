@@ -29,6 +29,7 @@ rustls = { version = "0.23.19"}
 rustls-native-certs = { version = "0.8.1"}
 rustls-pemfile = { version = "2.2.0"}
 rustls-pki-types = { version = "1.10.0"}
+scilib = "1.0.0"
 serde = { version = "1.0.215", features = ["derive"]}
 serde_json = "1.0.133"
 sqlx = { version = "0.8.2", features = ["sqlite", "runtime-tokio"]}

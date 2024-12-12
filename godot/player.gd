@@ -1,6 +1,6 @@
 extends Node3D
 
-@onready var core = $"../Core"
+@onready var core = get_tree().get_first_node_in_group("core")
 
 func _ready() -> void:
 	pass

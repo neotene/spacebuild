@@ -10,6 +10,7 @@ use hyper_tungstenite::tungstenite;
 use hyper_tungstenite::tungstenite::Message;
 use hyper_tungstenite::HyperWebsocket;
 use log::debug;
+use log::error;
 use log::info;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -61,6 +62,7 @@ async fn serve_websocket(
 ) -> Result<(), tungstenite::error::Error> {
     let mut websocket = websocket.await?;
     let mut uuid = Uuid::max();
+
     while let Some(message) = websocket.next().await {
         match message? {
             Message::Text(msg) => {
@@ -96,7 +98,13 @@ async fn serve_websocket(
                             login_info.message = uuid.to_string();
                         }
                     } else {
-                        login_info.message = "Unknown object".to_string();
+                        let mut instance = instance.lock().await;
+                        let maybe_player = instance.get_mut_player(uuid);
+                        if let Some(player) = maybe_player {
+                            player.actions.push(maybe_login);
+                        } else {
+                            error!("Can't find player {}", uuid);
+                        }
                     }
                 }
                 let maybe_login_info_str = serde_json::to_string(&login_info);

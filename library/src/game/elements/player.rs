@@ -1,6 +1,6 @@
 use crate::error::Error;
 use crate::game::element::Element;
-use crate::game::repr::{Angle, Coords, Direction, Distance};
+use crate::game::repr::{Angle, Direction, Distance, GalacticCoords};
 use crate::protocol::PlayerAction;
 use crate::Result;
 use nalgebra::Vector3;
@@ -10,12 +10,14 @@ use sqlx::Row;
 use std::str::FromStr;
 use uuid::Uuid;
 
+use super::move_from_local_delta;
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Player {
     pub(crate) uuid: Uuid,
     #[serde(skip_serializing)]
     pub(crate) synced: bool,
-    pub(crate) coords: Coords,
+    pub(crate) coords: GalacticCoords,
     pub(crate) direction: Vector3<f64>,
     pub(crate) speed: f64,
     pub(crate) nickname: String,
@@ -26,7 +28,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(coords: Coords, nickname: String, system_uuid: Uuid) -> Self {
+    pub fn new(coords: GalacticCoords, nickname: String, system_uuid: Uuid) -> Self {
         Self {
             uuid: Uuid::new_v4(),
             synced: false,
@@ -62,8 +64,11 @@ impl Player {
 }
 
 impl Element for Player {
-    fn get_coords(&self) -> &Coords {
+    fn get_coords(&self) -> &GalacticCoords {
         &self.coords
+    }
+    fn move_local(&mut self, delta: &crate::game::repr::SystemCoords) {
+        self.coords = move_from_local_delta(&self.coords, delta);
     }
 
     fn from_sqlite_row(row: &SqliteRow) -> Result<impl Element> {
@@ -74,11 +79,11 @@ impl Element for Player {
         let uuid = Uuid::from_str(uuid_str).map_err(|err| Error::DbInvalidUuidError(err))?;
 
         let angle_1: Angle = row
-            .try_get("angle_1")
+            .try_get("phi")
             .map_err(|err| Error::DbLoadSystemsError(err))?;
 
         let angle_2: Angle = row
-            .try_get("angle_2")
+            .try_get("theta")
             .map_err(|err| Error::DbLoadSystemsError(err))?;
 
         let distance: Distance = row
@@ -120,7 +125,7 @@ impl Element for Player {
             .map_err(|err| Error::DbInvalidUuidError(err))?;
 
         Ok(Player {
-            coords: Coords::new(angle_1, angle_2, distance),
+            coords: GalacticCoords::new(angle_1, angle_2, distance),
             direction: Vector3::new(direction_x, direction_y, direction_z),
             actions: Vec::new(),
             current_system_uuid,
@@ -135,14 +140,14 @@ impl Element for Player {
     fn update(&mut self, _delta: f32) -> bool {
         for action in &self.actions {
             match action {
-                // PlayerAction::ShipState(ship_state) => {
-                //     self.direction.x = ship_state.direction.x;
-                //     self.direction.y = ship_state.direction.y;
-                //     self.direction.z = ship_state.direction.z;
-                //     if ship_state.throttle_up {
-                //         self.coords += self.direction * self.speed * delta;
-                //     }
-                // }
+                PlayerAction::ShipState(ship_state) => {
+                    self.direction.x = ship_state.direction.x;
+                    self.direction.y = ship_state.direction.y;
+                    self.direction.z = ship_state.direction.z;
+                    if ship_state.throttle_up {
+                        // self.coords += self.direction * self.speed * delta;
+                    }
+                }
                 _ => {
                     todo!();
                 }
@@ -156,8 +161,8 @@ impl Element for Player {
         format!(
             "('{}', {}, {}, {}, {}, {}, {}, {}, '{}', '{}', '{}'),",
             self.uuid.to_string(),
-            self.coords.angle_1,
-            self.coords.angle_2,
+            self.coords.theta,
+            self.coords.phi,
             self.coords.distance,
             self.direction.x,
             self.direction.y,

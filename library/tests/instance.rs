@@ -5,9 +5,8 @@ mod space_build_tests_instance {
     use nalgebra::Vector3;
     use spacebuild::game::{
         element::{self, Element},
-        elements::system::CenterType,
         instance::Instance,
-        repr::Coords,
+        repr::GalacticCoords,
     };
     use sqlx::SqlitePool;
     use uuid::Uuid;
@@ -71,7 +70,7 @@ mod space_build_tests_instance {
 
         let uuid_str = "e599a2ae-58a8-449f-8007-80de1ea791e9";
 
-        sqlx::query("INSERT INTO System VALUES (?, '1.0', '2.0', '3', '0')")
+        sqlx::query("INSERT INTO System VALUES (?, '1.0', '2.0', '3')")
             .bind(uuid_str)
             .execute(&pool)
             .await?;
@@ -92,9 +91,7 @@ mod space_build_tests_instance {
 
         let system = instance.get_system(uuid_1).unwrap();
 
-        assert_eq!(Coords::new(1., 2., 3), *system.get_coords());
-
-        assert_eq!(CenterType::OneStar, system.get_center_type());
+        assert_eq!(GalacticCoords::new(1., 2., 3.), *system.get_coords());
 
         Ok(())
     }
@@ -105,12 +102,12 @@ mod space_build_tests_instance {
 
         let mut instance = Instance::from_path(db_path.as_str()).await?;
 
-        let sys_1 = element::System::new(Coords::new(1., 2., 3), CenterType::OneStar);
+        let sys_1 = element::System::new(GalacticCoords::new(1., 2., 3.));
 
         let uuid_1 = sys_1.get_uuid();
         instance.add_system(sys_1);
 
-        let sys_2 = element::System::new(Coords::new(4., 5., 6), CenterType::BlackHole);
+        let sys_2 = element::System::new(GalacticCoords::new(4., 5., 6.));
 
         let uuid_2 = sys_2.get_uuid();
         instance.add_system(sys_2);
@@ -131,8 +128,7 @@ mod space_build_tests_instance {
 
         let system = instance.get_system(uuid_1).unwrap();
 
-        assert_eq!(Coords::new(1., 2., 3), *system.get_coords());
-        assert_eq!(CenterType::OneStar, system.get_center_type());
+        assert_eq!(GalacticCoords::new(1., 2., 3.), *system.get_coords());
 
         assert_eq!(
             true,
@@ -144,8 +140,7 @@ mod space_build_tests_instance {
 
         let system = instance.get_system(uuid_2).unwrap();
 
-        assert_eq!(Coords::new(4., 5., 6), *system.get_coords());
-        assert_eq!(CenterType::BlackHole, system.get_center_type());
+        assert_eq!(GalacticCoords::new(4., 5., 6.), *system.get_coords());
 
         Ok(())
     }
@@ -157,7 +152,7 @@ mod space_build_tests_instance {
         let mut instance = Instance::from_path(db_path.as_str()).await?;
 
         let player = element::Player::new(
-            Coords::new(1., 2., 3),
+            GalacticCoords::new(1., 2., 3.),
             "player123".to_string(),
             Uuid::new_v4(),
         );
@@ -173,7 +168,7 @@ mod space_build_tests_instance {
 
         assert_eq!(player_cmp.get_uuid(), uuid);
         assert_eq!(player_cmp.direction(), Vector3::new(0., 0., 1.));
-        assert_eq!(*player_cmp.get_coords(), Coords::new(1., 2., 3));
+        assert_eq!(*player_cmp.get_coords(), GalacticCoords::new(1., 2., 3.));
         assert_eq!("player123", player_cmp.nickname());
         assert_eq!(0., player_cmp.speed());
         Ok(())
@@ -214,7 +209,7 @@ mod space_build_tests_instance {
 
         assert_eq!(player_cmp.get_uuid(), uuid);
         assert_eq!(player_cmp.direction(), Vector3::new(4., 5., 6.));
-        assert_eq!(*player_cmp.get_coords(), Coords::new(1., 2., 3));
+        assert_eq!(*player_cmp.get_coords(), GalacticCoords::new(1., 2., 3.));
         assert_eq!("player123", player_cmp.nickname());
         assert_eq!(7., player_cmp.speed());
 
