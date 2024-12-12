@@ -39,6 +39,8 @@ func _server_logs():
 
 	while server_process_state == ServerProcessState.RUNNING:		
 		var stderr_line = pipe_err.get_line()
+		if pipe_err.eof_reached() || stderr_line.is_empty():
+			return
 		var search_result = regex.search(stderr_line)
 		if search_result:
 			var port_str = search_result.get_string(1)
