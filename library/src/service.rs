@@ -1,4 +1,3 @@
-use crate::game;
 use crate::game::element::Element;
 use crate::game::instance::Instance;
 use crate::protocol::AuthInfo;
@@ -8,13 +7,12 @@ use futures::StreamExt;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::{Request, Response, StatusCode};
-use hyper_tungstenite::tungstenite;
 use hyper_tungstenite::tungstenite::Message;
 use hyper_tungstenite::HyperWebsocket;
 use log::debug;
 use log::error;
 use log::info;
-use std::borrow::Borrow;
+use log::trace;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -57,7 +55,7 @@ pub async fn serve_http(
 }
 
 async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance>>) {
-    let mut maybe_websocket = websocket.await;
+    let maybe_websocket = websocket.await;
     if maybe_websocket.is_err() {
         error!("Websocket error: {}", maybe_websocket.err().unwrap());
         return;
@@ -71,16 +69,20 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
     loop {
         tokio::select! {
             _ = tick_delay.tick() => {
+                if uuid.is_max() {
+                    continue;
+                }
                 let maybe_player = instance.lock().await.get_galaxy().get_element(uuid).await;
 
                 if let Some(player) = maybe_player {
-                    if let Element::Player(player) = &player.lock().await.borrow().element {
+                    if let Element::Player(player) = &mut player.lock().await.deref_mut().element {
                         for game_info in &player.game_infos {
                             let game_info_str = serde_json::to_string(&game_info).unwrap();
                             if websocket.send(Message::text(game_info_str)).await.is_err() {
                                 error!("Could not send to client");
                             }
                         }
+                        player.game_infos.clear();
                     }
                 } else {
                     unreachable!()
@@ -88,7 +90,7 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
             },
             Some(message) = websocket.next() => {
                 if message.is_err() {
-                    error!("Websocket read error: {}", message.err().unwrap());
+                    trace!("Websocket read error: {}", message.err().unwrap());
                     break;
                 }
                 match message.unwrap() {
@@ -140,7 +142,7 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                         }
                         let maybe_login_info_str = serde_json::to_string(&login_info);
                         assert!(maybe_login_info_str.is_ok());
-                        websocket
+                        let _ = websocket
                             .send(Message::text(maybe_login_info_str.unwrap()))
                             .await;
                         debug!("Message sent or error");

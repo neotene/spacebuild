@@ -1,9 +1,9 @@
 use super::element::{Body, Element};
-use super::elements::player::{self, Player};
-use super::elements::system::{self, System};
+use super::elements::player::Player;
+use super::elements::system::System;
 use super::repr::{Angle, Distance, GalacticCoords, Speed, SystemCoords};
 use crate::error::Error;
-use crate::protocol::{ElementInfo, GameInfo, MyVector3, PlayerInfo};
+use crate::protocol::{ElementInfo, GameInfo, PlayerInfo};
 use crate::Result;
 use futures::TryStreamExt;
 use rand::Rng;
@@ -11,7 +11,6 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::borrow::Borrow;
-use std::default;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
@@ -21,8 +20,8 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 type ElementsContainer = Vec<Arc<Mutex<ElementContainer>>>;
-#[derive(Default)]
-struct Galaxy {
+#[derive(Default, Clone)]
+pub struct Galaxy {
     elements: ElementsContainer,
 }
 
@@ -106,8 +105,23 @@ impl ElementContainer {
                     .translate_from_local_delta(&(self.direction.normalize() * self.speed * delta));
             }
             Element::Player(player) => {
-                self.coords
-                    .translate_from_local_delta(&(self.direction.normalize() * self.speed * delta));
+                for action in &player.actions {
+                    match action {
+                        crate::protocol::PlayerAction::ShipState(ship_state) => {
+                            if ship_state.throttle_up {
+                                self.coords.translate_from_local_delta(
+                                    &(self.direction.normalize() * self.speed * delta),
+                                );
+                            }
+                        }
+                        _ => {
+                            unreachable!()
+                        }
+                    }
+                }
+
+                player.actions.clear();
+
                 player.game_infos.push(GameInfo::Player(PlayerInfo {
                     coords: self.coords.get_local_from_element(
                         others
@@ -261,9 +275,13 @@ impl ElementContainer {
                     speed,
                 )
             } else if body_type.is_ok() {
+                let system_owner_uuid: &str = row
+                    .try_get("system_owner")
+                    .map_err(|err| Error::DbLoadSystemsError(err))?;
                 ElementContainer::new(
                     Element::Body(Body::new(
                         (body_type.map_err(|err| Error::DbLoadSystemsError(err))? as u32).into(),
+                        Uuid::from_str(system_owner_uuid).unwrap(),
                     )),
                     uuid,
                     GalacticCoords::new(phi, theta, distance),
@@ -392,6 +410,10 @@ impl Instance {
         &self.galaxy
     }
 
+    pub fn get_galaxy_mut(&mut self) -> &mut Galaxy {
+        &mut self.galaxy
+    }
+
     pub async fn load_systems(&mut self) -> Result<()> {
         let mut rows = sqlx::query("SELECT * FROM System").fetch(&self.pool);
 
@@ -461,12 +483,16 @@ impl Instance {
 
         match maybe_uuid {
             Err(Error::DbLoadPlayerByNicknameNotFound) => {
-                let player_system = gen_system();
+                let (player_system, bodies_in_system) = gen_system();
                 let player_sys_uuid = player_system.uuid;
                 instance
                     .galaxy
                     .elements
                     .push(Arc::new(Mutex::new(player_system)));
+
+                for body in bodies_in_system {
+                    instance.galaxy.elements.push(Arc::new(Mutex::new(body)));
+                }
 
                 let player = ElementContainer::new(
                     Element::Player(Player::new(
@@ -491,8 +517,9 @@ impl Instance {
     }
 
     pub async fn update(&mut self, delta: f64) -> bool {
+        let cln = self.galaxy.clone();
         for element in &mut self.galaxy.elements {
-            element.lock().await.deref_mut().update(delta, self.galaxy);
+            element.lock().await.deref_mut().update(delta, &cln).await;
         }
         false
     }

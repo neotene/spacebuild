@@ -241,7 +241,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 
             let mut instance = Instance::from_path(db_path.as_str()).await?;
 
-            instance.add_element(
+            instance.get_galaxy_mut().add_element(
                 Element::Player(Player::new(
                     "test963".to_string(),
                     Uuid::new_v4(),
