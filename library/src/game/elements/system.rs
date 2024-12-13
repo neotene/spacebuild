@@ -9,8 +9,6 @@ use sqlx::Row;
 use std::str::FromStr;
 use uuid::Uuid;
 
-use super::move_from_local_delta;
-
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
 pub enum CenterType {
     OneStar,
@@ -47,11 +45,11 @@ impl System {
 
         let uuid = Uuid::from_str(uuid_str).map_err(|err| Error::DbInvalidUuidError(err))?;
 
-        let angle_1: Angle = row
+        let phi: Angle = row
             .try_get("phi")
             .map_err(|err| Error::DbLoadSystemsError(err))?;
 
-        let angle_2: Angle = row
+        let theta: Angle = row
             .try_get("theta")
             .map_err(|err| Error::DbLoadSystemsError(err))?;
 
@@ -62,7 +60,7 @@ impl System {
         Ok(ElementContainer::new(
             Element::System(System::new()),
             uuid,
-            GalacticCoords::new(angle_1, angle_2, distance),
+            GalacticCoords::new(phi, theta, distance),
         ))
     }
 

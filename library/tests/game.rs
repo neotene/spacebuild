@@ -11,7 +11,11 @@ mod spacebuild_tests_game {
     use log::info;
     use spacebuild::{
         client::Client,
-        game::{element, instance::Instance, repr::GalacticCoords},
+        game::{
+            element::{self, Element, Player},
+            instance::Instance,
+            repr::GalacticCoords,
+        },
         network::tls::{ClientPki, ServerPki},
         server,
     };
@@ -237,13 +241,16 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 
             let mut instance = Instance::from_path(db_path.as_str()).await?;
 
-            instance.add_player(element::Player::new(
+            instance.add_element(
+                Element::Player(Player::new(
+                    "test963".to_string(),
+                    Uuid::new_v4(),
+                    Uuid::new_v4(),
+                )),
                 GalacticCoords::default(),
-                "test963".to_string(),
-                Uuid::new_v4(),
-            ));
+            );
 
-            instance.save_players().await?;
+            instance.sync_to_db().await?;
         }
 
         let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false).await?;

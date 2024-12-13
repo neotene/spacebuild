@@ -6,7 +6,7 @@ use rand::Rng;
 use regex::Regex;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::fs::File;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -15,7 +15,7 @@ use uuid::Uuid;
 use super::element::Element;
 use super::elements::player::Player;
 use super::elements::system::System;
-use super::repr::{GalacticCoords, SystemCoords};
+use super::repr::{GalacticCoords, Speed, SystemCoords};
 
 pub struct ElementContainer {
     pub(crate) element: Element,
@@ -36,6 +36,31 @@ impl ElementContainer {
             synced: false,
             uuid,
         }
+    }
+
+    pub fn update(&mut self, delta: f64) {
+        self.coords
+            .translate_from_local_delta(&(self.direction.normalize() * self.speed * delta));
+    }
+
+    pub fn get_uuid(&self) -> Uuid {
+        self.uuid
+    }
+
+    pub fn get_coords(&self) -> GalacticCoords {
+        self.coords.clone()
+    }
+
+    pub fn get_direction(&self) -> SystemCoords {
+        self.direction
+    }
+
+    pub fn get_speed(&self) -> Speed {
+        self.speed
+    }
+
+    pub fn get_element(&self) -> &Element {
+        &self.element
     }
 }
 
@@ -97,44 +122,51 @@ impl Instance {
         Ok(())
     }
 
-    const REGEX_STR: &str = "^(.*::)([^:]+)$";
-
-    fn get_insert_query<T>() -> String {
-        let regex = Regex::new(Self::REGEX_STR).unwrap();
-        let full_type_name = std::any::type_name::<T>();
-
-        let mut results = vec![];
-
-        for (_, [prefix_type, short_type]) in
-            regex.captures_iter(&full_type_name).map(|c| c.extract())
-        {
-            results.push((prefix_type, short_type));
-        }
-
-        "INSERT INTO ".to_string() + results.last().unwrap().1 + " VALUES "
+    pub fn get_elements(&self) -> &ElementsCollection {
+        &self.elements
     }
 
-    // pub fn get_elements(&self) -> &ElementsCollection {
-    //     &self.elements
-    // }
+    pub async fn get_systems(&self) -> ElementsCollection {
+        let mut collection = ElementsCollection::new();
 
-    // pub fn add_system(&mut self, system: System, coords: GalacticCoords) {
-    //     self.elements
-    //         .push(Arc::new(Mutex::new(ElementContainer::new(
-    //             Element::System(system),
-    //             Uuid::new_v4(),
-    //             coords,
-    //         ))));
-    // }
+        for element in &self.elements {
+            if let Element::System(_) = element.lock().await.element {
+                collection.push(Arc::clone(&element));
+            }
+        }
 
-    // pub fn add_player(&mut self, player: Player, coords: GalacticCoords) {
-    //     self.elements
-    //         .push(Arc::new(Mutex::new(ElementContainer::new(
-    //             Element::Player(player),
-    //             Uuid::new_v4(),
-    //             coords,
-    //         ))));
-    // }
+        collection
+    }
+
+    pub async fn get_players(&self) -> ElementsCollection {
+        let mut collection = ElementsCollection::new();
+
+        for element in &self.elements {
+            if let Element::Player(_) = element.lock().await.element {
+                collection.push(Arc::clone(&element));
+            }
+        }
+
+        collection
+    }
+
+    pub fn add_element(&mut self, element: Element, coords: GalacticCoords) -> Uuid {
+        let uuid = Uuid::new_v4();
+        self.elements
+            .push(Arc::new(Mutex::new(ElementContainer::new(
+                element, uuid, coords,
+            ))));
+        uuid
+    }
+
+    pub async fn get_element(&self, uuid: Uuid) -> Option<Arc<Mutex<ElementContainer>>> {
+        for element in &self.elements {
+            if element.lock().await.uuid == uuid {
+                return Some(Arc::clone(element));
+            }
+        }
+        None
+    }
 
     pub async fn load_systems(&mut self) -> Result<()> {
         let mut rows = sqlx::query("SELECT * FROM System").fetch(&self.pool);
@@ -220,15 +252,11 @@ impl Instance {
         }
     }
 
-    pub async fn update(&mut self, delta: f32) -> bool {
-        let mut has_changed = false;
+    pub async fn update(&mut self, delta: f64) -> bool {
         for element in &mut self.elements {
-            if element.lock().await.update(delta) {
-                element.lock().await.set_synced(true);
-                has_changed = true;
-            }
+            element.lock().await.deref_mut().update(delta);
         }
-        has_changed
+        false
     }
 }
 

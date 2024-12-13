@@ -11,8 +11,6 @@ use sqlx::Row;
 use std::str::FromStr;
 use uuid::Uuid;
 
-use super::move_from_local_delta;
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Player {
     pub(crate) nickname: String,
@@ -32,7 +30,7 @@ impl Player {
         }
     }
 
-    pub fn nickname(&self) -> &str {
+    pub fn get_nickname(&self) -> &str {
         &self.nickname
     }
 
@@ -46,10 +44,6 @@ impl Player {
 }
 
 impl Player {
-    // fn move_local(&mut self, delta: &crate::game::repr::SystemCoords) {
-    //     self.coords = move_from_local_delta(&self.coords, delta);
-    // }
-
     pub fn from_sqlite_row(row: &SqliteRow) -> Result<ElementContainer> {
         let uuid_str: &str = row
             .try_get("uuid")

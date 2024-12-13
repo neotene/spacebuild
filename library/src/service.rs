@@ -1,3 +1,4 @@
+use crate::game::element::Element;
 use crate::game::instance::Instance;
 use crate::protocol::AuthInfo;
 use crate::protocol::PlayerAction;
@@ -12,6 +13,7 @@ use hyper_tungstenite::HyperWebsocket;
 use log::debug;
 use log::error;
 use log::info;
+use std::borrow::BorrowMut;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -98,10 +100,14 @@ async fn serve_websocket(
                             login_info.message = uuid.to_string();
                         }
                     } else {
-                        let mut instance = instance.lock().await;
-                        let maybe_player = instance.get_mut_player(uuid);
-                        if let Some(player) = maybe_player {
-                            player.actions.push(maybe_login);
+                        let instance = instance.lock().await;
+                        let maybe_element = instance.get_element(uuid).await;
+                        if let Some(maybe_player) = maybe_element {
+                            if let Element::Player(player) =
+                                &mut maybe_player.lock().await.deref_mut().element
+                            {
+                                player.actions.push(maybe_login);
+                            }
                         } else {
                             error!("Can't find player {}", uuid);
                         }
