@@ -20,9 +20,8 @@ pub trait Element: Any {
     fn is_synced(&self) -> bool;
     fn set_synced(&mut self, is_synced: bool);
     fn get_coords(&self) -> &GalacticCoords;
-    // fn get_local_coords(&self) -> &SystemCoords;
-    // fn move_global(&mut self, global_coords: &GalacticCoords);
     fn move_local(&mut self, local_coords: &SystemCoords);
+    fn get_name(&self) -> String;
 }
 
 downcast!(dyn Element);

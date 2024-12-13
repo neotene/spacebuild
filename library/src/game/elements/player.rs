@@ -185,4 +185,8 @@ impl Element for Player {
     fn set_synced(&mut self, is_synced: bool) {
         self.synced = is_synced;
     }
+
+    fn get_name(&self) -> String {
+        self.nickname.clone()
+    }
 }
