@@ -14,10 +14,10 @@ pub struct GalacticCoords {
 }
 
 impl GalacticCoords {
-    pub fn new(angle_1: Angle, angle_2: Angle, distance: Distance) -> Self {
+    pub fn new(phi: Angle, theta: Angle, distance: Distance) -> Self {
         GalacticCoords {
-            theta: angle_1,
-            phi: angle_2,
+            theta,
+            phi,
             distance,
         }
     }

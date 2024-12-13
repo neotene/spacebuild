@@ -2,7 +2,8 @@ use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::game::{element::Element, repr::GalacticCoords};
+use crate::game::repr::GalacticCoords;
+use crate::Result;
 
 use super::move_from_local_delta;
 
@@ -45,12 +46,12 @@ impl Body {
     }
 }
 
-impl Element for Body {
+impl Body {
     fn get_coords(&self) -> &GalacticCoords {
         &self.coords
     }
 
-    fn from_sqlite_row(_row: &sqlx::sqlite::SqliteRow) -> crate::Result<impl Element> {
+    fn from_sqlite_row(_row: &sqlx::sqlite::SqliteRow) -> Result<Body> {
         Ok(Body::new(
             BodyType::Asteroid,
             GalacticCoords::new(0., 0., 0.),

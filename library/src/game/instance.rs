@@ -1,23 +1,45 @@
 use crate::error::Error;
-use crate::protocol::gen_system;
 use crate::Result;
 use futures::TryStreamExt;
+use nalgebra::Vector3;
+use rand::Rng;
 use regex::Regex;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::fs::File;
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
-extern crate downcast;
 
 use super::element::Element;
-use super::elements;
 use super::elements::player::Player;
 use super::elements::system::System;
-use super::repr::GalacticCoords;
+use super::repr::{GalacticCoords, SystemCoords};
 
-type ElementsCollection = Vec<Arc<Mutex<dyn Element + Send>>>;
+pub struct ElementContainer {
+    pub(crate) element: Element,
+    pub(crate) uuid: Uuid,
+    pub(crate) synced: bool,
+    pub(crate) coords: GalacticCoords,
+    pub(crate) direction: Vector3<f64>,
+    pub(crate) speed: f64,
+}
+
+impl ElementContainer {
+    pub fn new(element: Element, uuid: Uuid, coords: GalacticCoords) -> Self {
+        Self {
+            coords,
+            direction: SystemCoords::default(),
+            element,
+            speed: 0.,
+            synced: false,
+            uuid,
+        }
+    }
+}
+
+type ElementsCollection = Vec<Arc<Mutex<ElementContainer>>>;
 
 pub struct Instance {
     pub(crate) pool: Pool<Sqlite>,
@@ -92,17 +114,27 @@ impl Instance {
         "INSERT INTO ".to_string() + results.last().unwrap().1 + " VALUES "
     }
 
-    pub fn get_elements(&self) -> &ElementsCollection {
-        &self.elements
-    }
+    // pub fn get_elements(&self) -> &ElementsCollection {
+    //     &self.elements
+    // }
 
-    pub fn add_system(&mut self, system: System) {
-        self.elements.push(Arc::new(Mutex::new(system)));
-    }
+    // pub fn add_system(&mut self, system: System, coords: GalacticCoords) {
+    //     self.elements
+    //         .push(Arc::new(Mutex::new(ElementContainer::new(
+    //             Element::System(system),
+    //             Uuid::new_v4(),
+    //             coords,
+    //         ))));
+    // }
 
-    pub fn add_player(&mut self, player: Player) {
-        self.elements.push(Arc::new(Mutex::new(player)));
-    }
+    // pub fn add_player(&mut self, player: Player, coords: GalacticCoords) {
+    //     self.elements
+    //         .push(Arc::new(Mutex::new(ElementContainer::new(
+    //             Element::Player(player),
+    //             Uuid::new_v4(),
+    //             coords,
+    //         ))));
+    // }
 
     pub async fn load_systems(&mut self) -> Result<()> {
         let mut rows = sqlx::query("SELECT * FROM System").fetch(&self.pool);
@@ -138,7 +170,7 @@ impl Instance {
 
         let player = Player::from_sqlite_row(first)?;
 
-        let uuid = player.get_uuid();
+        let uuid = player.uuid;
 
         self.elements.push(Arc::new(Mutex::new(player)));
 
@@ -148,7 +180,9 @@ impl Instance {
     pub async fn leave(&mut self, uuid: Uuid) {
         let mut i = 0;
         for element in &self.elements {
-            if element.lock().await.get_uuid() == uuid {}
+            if element.lock().await.uuid == uuid {
+                break;
+            }
             i += 1;
         }
 
@@ -163,13 +197,20 @@ impl Instance {
         match maybe_uuid {
             Err(Error::DbLoadPlayerByNicknameNotFound) => {
                 let player_system = gen_system();
-                let player_sys_uuid = player_system.get_uuid();
-                instance.add_system(player_system);
+                let player_sys_uuid = player_system.uuid;
+                instance.elements.push(Arc::new(Mutex::new(player_system)));
 
-                let player =
-                    Player::new(GalacticCoords::default(), nickname.clone(), player_sys_uuid);
-                let uuid = player.get_uuid();
-                instance.add_player(player);
+                let player = ElementContainer::new(
+                    Element::Player(Player::new(
+                        nickname.clone(),
+                        player_sys_uuid,
+                        player_sys_uuid,
+                    )),
+                    Uuid::new_v4(),
+                    GalacticCoords::default(),
+                );
+                let uuid = player.uuid;
+                instance.elements.push(Arc::new(Mutex::new(player)));
                 instance.sync_to_db().await?;
 
                 Ok(uuid)
@@ -189,4 +230,17 @@ impl Instance {
         }
         has_changed
     }
+}
+
+pub fn gen_system() -> ElementContainer {
+    let mut rng = rand::thread_rng();
+    let angle_1 = rng.gen_range(0..15000) as f64 / 10000.;
+    let angle_2 = rng.gen_range(0..15000) as f64 / 10000.;
+    let distance = rng.gen_range(0.0..10000000000.);
+
+    ElementContainer::new(
+        Element::System(System::new()),
+        Uuid::new_v4(),
+        GalacticCoords::new(angle_1, angle_2, distance),
+    )
 }
