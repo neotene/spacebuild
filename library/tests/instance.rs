@@ -1,7 +1,12 @@
 #[cfg(test)]
+use test_helpers_async::*;
+
+#[before_all]
+#[cfg(test)]
 mod space_build_tests_instance {
     use std::{env, fs::File, str::FromStr};
 
+    use common::trace;
     use nalgebra::Vector3;
     use spacebuild::game::{
         element::{self, Element},
@@ -10,6 +15,10 @@ mod space_build_tests_instance {
     };
     use sqlx::SqlitePool;
     use uuid::Uuid;
+
+    pub fn before_all() {
+        trace::init(Some("(.*)".to_string()));
+    }
 
     pub fn get_random_db_path() -> String {
         format!(
@@ -70,7 +79,7 @@ mod space_build_tests_instance {
 
         let uuid_str = "e599a2ae-58a8-449f-8007-80de1ea791e9";
 
-        sqlx::query("INSERT INTO System VALUES (?, '1.0', '2.0', '3')")
+        sqlx::query("INSERT INTO System VALUES (?, 1.0, 2.0, 3.0, 4.0)")
             .bind(uuid_str)
             .execute(&pool)
             .await?;
@@ -107,11 +116,11 @@ mod space_build_tests_instance {
 
         let mut instance = Instance::from_path(db_path.as_str()).await?;
 
-        let sys_1 = element::System::new();
+        let sys_1 = element::System::default();
 
         let uuid_1 = instance.add_element(Element::System(sys_1), GalacticCoords::new(1., 2., 3.));
 
-        let sys_2 = element::System::new();
+        let sys_2 = element::System::default();
 
         let uuid_2 = instance.add_element(Element::System(sys_2), GalacticCoords::new(4., 5., 6.));
 
@@ -174,7 +183,7 @@ mod space_build_tests_instance {
         assert_eq!(player_cmp.lock().await.get_uuid(), uuid);
         assert_eq!(
             player_cmp.lock().await.get_direction(),
-            Vector3::new(0., 0., 1.)
+            Vector3::new(0., 0., 0.)
         );
         assert_eq!(
             player_cmp.lock().await.get_coords(),
@@ -226,13 +235,13 @@ mod space_build_tests_instance {
         assert_eq!(player_cmp.lock().await.get_uuid(), uuid);
         assert_eq!(
             player_cmp.lock().await.get_direction(),
-            Vector3::new(4., 5., 6.)
+            Vector3::new(5., 6., 7.)
         );
         assert_eq!(
             player_cmp.lock().await.get_coords(),
             GalacticCoords::new(1., 2., 3.)
         );
-        assert_eq!(7., player_cmp.lock().await.get_speed());
+        assert_eq!(4., player_cmp.lock().await.get_speed());
 
         if let Element::Player(player_cmp) = player_cmp.lock().await.get_element() {
             assert_eq!("player123", player_cmp.get_nickname());

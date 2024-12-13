@@ -101,7 +101,7 @@ pub async fn run(
                 let now = tokio::time::Instant::now();
                 let delta = now - ref_instant;
                 ref_instant = now;
-                instance.lock().await.update(delta.as_secs_f64());
+                instance.lock().await.update(delta.as_secs_f64()).await;
             },
             // ----------------------------------------------------
             // ON TERM EVENT---------------------------------------

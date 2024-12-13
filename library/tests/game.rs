@@ -12,7 +12,7 @@ mod spacebuild_tests_game {
     use spacebuild::{
         client::Client,
         game::{
-            element::{self, Element, Player},
+            element::{Element, Player},
             instance::Instance,
             repr::GalacticCoords,
         },

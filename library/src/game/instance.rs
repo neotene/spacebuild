@@ -1,39 +1,43 @@
+use super::element::{Body, Element};
+use super::elements::player::Player;
+use super::elements::system::System;
+use super::repr::{Angle, Distance, GalacticCoords, Speed, SystemCoords};
 use crate::error::Error;
 use crate::Result;
 use futures::TryStreamExt;
-use nalgebra::Vector3;
 use rand::Rng;
-use regex::Regex;
+use sqlx::sqlite::SqliteRow;
+use sqlx::Row;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::fs::File;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use super::element::Element;
-use super::elements::player::Player;
-use super::elements::system::System;
-use super::repr::{GalacticCoords, Speed, SystemCoords};
-
 pub struct ElementContainer {
     pub(crate) element: Element,
     pub(crate) uuid: Uuid,
-    pub(crate) synced: bool,
     pub(crate) coords: GalacticCoords,
-    pub(crate) direction: Vector3<f64>,
-    pub(crate) speed: f64,
+    pub(crate) direction: SystemCoords,
+    pub(crate) speed: Speed,
 }
 
 impl ElementContainer {
-    pub fn new(element: Element, uuid: Uuid, coords: GalacticCoords) -> Self {
+    pub fn new(
+        element: Element,
+        uuid: Uuid,
+        coords: GalacticCoords,
+        direction: SystemCoords,
+        speed: Speed,
+    ) -> Self {
         Self {
             coords,
-            direction: SystemCoords::default(),
+            direction,
             element,
-            speed: 0.,
-            synced: false,
+            speed,
             uuid,
         }
     }
@@ -62,6 +66,125 @@ impl ElementContainer {
     pub fn get_element(&self) -> &Element {
         &self.element
     }
+
+    pub fn get_sql_insert_line(&self) -> String {
+        let mut sql_insert_line = format!(
+            "('{}', {}, {}, {}, {}",
+            self.uuid, self.coords.phi, self.coords.theta, self.coords.distance, self.speed
+        );
+        match &self.element {
+            Element::System(_) => {}
+            Element::Body(body) => {
+                sql_insert_line += format!(
+                    ", {}, {}, {}, {}",
+                    self.direction.x, self.direction.y, self.direction.z, body.body_type as u32
+                )
+                .as_str()
+            }
+            Element::Player(player) => {
+                sql_insert_line += format!(
+                    ", {}, {}, {}, '{}', '{}', '{}'",
+                    self.direction.x,
+                    self.direction.y,
+                    self.direction.z,
+                    player.nickname,
+                    player.own_system_uuid,
+                    player.current_system_uuid
+                )
+                .as_str()
+            }
+        }
+        sql_insert_line + ")"
+    }
+
+    pub fn from_sqlite_row(row: &SqliteRow) -> Result<Self> {
+        let uuid_str: &str = row
+            .try_get("uuid")
+            .map_err(|err| Error::DbLoadSystemsError(err))?;
+
+        let uuid = Uuid::from_str(uuid_str).map_err(|err| Error::DbInvalidUuidError(err))?;
+
+        let phi: Angle = row
+            .try_get("phi")
+            .map_err(|err| Error::DbLoadSystemsError(err))?;
+
+        let theta: Angle = row
+            .try_get("theta")
+            .map_err(|err| Error::DbLoadSystemsError(err))?;
+
+        let distance: Distance = row
+            .try_get("distance")
+            .map_err(|err| Error::DbLoadSystemsError(err))?;
+
+        let speed: f64 = row
+            .try_get("speed")
+            .map_err(|err| Error::DbLoadSystemsError(err))?;
+
+        let direction_x: sqlx::Result<f64> = row.try_get("dir_x");
+        let nickname: sqlx::Result<&str> = row.try_get("nickname");
+        let body_type: sqlx::Result<i32> = row.try_get("type");
+
+        let element_container = if direction_x.is_ok() {
+            let direction_y: f64 = row
+                .try_get("dir_y")
+                .map_err(|err| Error::DbLoadSystemsError(err))?;
+
+            let direction_z: f64 = row
+                .try_get("dir_z")
+                .map_err(|err| Error::DbLoadSystemsError(err))?;
+
+            if nickname.is_ok() {
+                let own_system_uuid: &str = row
+                    .try_get("own_system")
+                    .map_err(|err| Error::DbLoadSystemsError(err))?;
+                let current_system_uuid: &str = row
+                    .try_get("current_system")
+                    .map_err(|err| Error::DbLoadSystemsError(err))?;
+                ElementContainer::new(
+                    Element::Player(Player::new(
+                        nickname.unwrap().to_string(),
+                        Uuid::from_str(own_system_uuid)
+                            .map_err(|err| Error::BadUuidError(err, own_system_uuid.to_string()))?,
+                        Uuid::from_str(current_system_uuid)
+                            .map_err(|err| Error::BadUuidError(err, own_system_uuid.to_string()))?,
+                    )),
+                    uuid,
+                    GalacticCoords::new(phi, theta, distance),
+                    SystemCoords::new(
+                        direction_x.map_err(|err| Error::DbLoadSystemsError(err))?,
+                        direction_y,
+                        direction_z,
+                    ),
+                    speed,
+                )
+            } else if body_type.is_ok() {
+                ElementContainer::new(
+                    Element::Body(Body::new(
+                        (body_type.map_err(|err| Error::DbLoadSystemsError(err))? as u32).into(),
+                    )),
+                    uuid,
+                    GalacticCoords::new(phi, theta, distance),
+                    SystemCoords::new(
+                        direction_x.map_err(|err| Error::DbLoadSystemsError(err))?,
+                        direction_y,
+                        direction_z,
+                    ),
+                    speed,
+                )
+            } else {
+                unreachable!()
+            }
+        } else {
+            ElementContainer::new(
+                Element::System(System::default()),
+                uuid,
+                GalacticCoords::new(phi, theta, distance),
+                SystemCoords::default(),
+                speed,
+            )
+        };
+        Ok(element_container)
+    }
 }
 
 type ElementsCollection = Vec<Arc<Mutex<ElementContainer>>>;
@@ -72,11 +195,11 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub const CREATE_TABLE_PLAYER_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS Player (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL, dir_x REAL, dir_y REAL, dir_z REAL, speed REAL, nickname TEXT, own_system TEXT, current_system TEXT)";
+    pub const CREATE_TABLE_PLAYER_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS Player (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL, speed REAL, dir_x REAL, dir_y REAL, dir_z REAL, nickname TEXT, own_system TEXT, current_system TEXT)";
 
-    pub const CREATE_TABLE_SYSTEM_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS System (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL)";
+    pub const CREATE_TABLE_SYSTEM_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS System (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL, speed REAL)";
 
-    pub const CREATE_TABLE_BODY_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS Body (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL, speed REAL, type INT, system_owner TEXT, FOREIGN KEY(system_owner) REFERENCES System(uuid))";
+    pub const CREATE_TABLE_BODY_SQL_STR: &str = "CREATE TABLE IF NOT EXISTS Body (uuid TEXT PRIMARY KEY, phi REAL, theta REAL, distance REAL, speed REAL, dir_x REAL, dir_y REAL, dir_z REAL, type INT, system_owner TEXT, FOREIGN KEY(system_owner) REFERENCES System(uuid))";
 
     pub async fn from_path(db_path: &'_ str) -> Result<Instance> {
         if !Path::new(db_path).exists() {
@@ -119,6 +242,48 @@ impl Instance {
     }
 
     pub async fn sync_to_db(&mut self) -> Result<()> {
+        let mut insert_systems_sql_str = "INSERT INTO System VALUES ".to_string();
+        let mut insert_bodies_sql_str = "INSERT INTO Body VALUES ".to_string();
+        let mut insert_players_sql_str = "INSERT INTO Player VALUES ".to_string();
+        for element in &self.elements {
+            let guard = element.lock().await;
+            match guard.element {
+                Element::System(_) => {
+                    insert_systems_sql_str += guard.get_sql_insert_line().as_str();
+                    insert_systems_sql_str += ", ";
+                }
+                Element::Body(_) => {
+                    insert_bodies_sql_str += guard.get_sql_insert_line().as_str();
+                    insert_bodies_sql_str += ", ";
+                }
+                Element::Player(_) => {
+                    insert_players_sql_str += guard.get_sql_insert_line().as_str();
+                    insert_players_sql_str += ", ";
+                }
+            }
+        }
+
+        if let Some(sql_str) = insert_systems_sql_str.strip_suffix(", ") {
+            let _ = sqlx::query(&sql_str)
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|err| Error::DbSyncToDbError(err))?;
+        }
+
+        if let Some(sql_str) = insert_bodies_sql_str.strip_suffix(", ") {
+            let _ = sqlx::query(&sql_str)
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|err| Error::DbSyncToDbError(err))?;
+        }
+
+        if let Some(sql_str) = insert_players_sql_str.strip_suffix(", ") {
+            let _ = sqlx::query(&sql_str)
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|err| Error::DbSyncToDbError(err))?;
+        }
+
         Ok(())
     }
 
@@ -154,7 +319,11 @@ impl Instance {
         let uuid = Uuid::new_v4();
         self.elements
             .push(Arc::new(Mutex::new(ElementContainer::new(
-                element, uuid, coords,
+                element,
+                uuid,
+                coords,
+                SystemCoords::default(),
+                0.,
             ))));
         uuid
     }
@@ -177,7 +346,9 @@ impl Instance {
             .map_err(|err| Error::DbLoadSystemsError(err))?
         {
             self.elements
-                .push(Arc::new(Mutex::new(System::from_sqlite_row(&row)?)));
+                .push(Arc::new(Mutex::new(ElementContainer::from_sqlite_row(
+                    &row,
+                )?)));
         }
 
         Ok(())
@@ -200,7 +371,7 @@ impl Instance {
 
         let first = rows.first().unwrap();
 
-        let player = Player::from_sqlite_row(first)?;
+        let player = ElementContainer::from_sqlite_row(first)?;
 
         let uuid = player.uuid;
 
@@ -240,6 +411,8 @@ impl Instance {
                     )),
                     Uuid::new_v4(),
                     GalacticCoords::default(),
+                    SystemCoords::default(),
+                    0.,
                 );
                 let uuid = player.uuid;
                 instance.elements.push(Arc::new(Mutex::new(player)));
@@ -267,8 +440,10 @@ pub fn gen_system() -> ElementContainer {
     let distance = rng.gen_range(0.0..10000000000.);
 
     ElementContainer::new(
-        Element::System(System::new()),
+        Element::System(System::default()),
         Uuid::new_v4(),
         GalacticCoords::new(angle_1, angle_2, distance),
+        SystemCoords::default(),
+        0.,
     )
 }

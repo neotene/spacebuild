@@ -13,7 +13,6 @@ use hyper_tungstenite::HyperWebsocket;
 use log::debug;
 use log::error;
 use log::info;
-use std::borrow::BorrowMut;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;

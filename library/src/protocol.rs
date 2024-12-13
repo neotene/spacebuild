@@ -1,6 +1,5 @@
-use crate::game::{elements::system::System, repr::GalacticCoords};
+use crate::game::elements::system::System;
 use nalgebra::Vector3;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -49,12 +48,3 @@ pub enum ServerInfo {
 pub struct NextMessage {
     pub next_message_type: String,
 }
-
-// pub fn gen_system() -> System {
-//     let mut rng = rand::thread_rng();
-//     let angle_1 = rng.gen_range(0..15000) as f64 / 10000.;
-//     let angle_2 = rng.gen_range(0..15000) as f64 / 10000.;
-//     let distance = rng.gen_range(0.0..10000000000.);
-
-//     System::new(GalacticCoords::new(angle_1, angle_2, distance))
-// }
