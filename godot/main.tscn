@@ -1,0 +1,308 @@
+[gd_scene load_steps=8 format=3 uid="uid://cj5ip8gskegxr"]
+
+[ext_resource type="Theme" uid="uid://dxkx538kc58lm" path="res://theme.tres" id="1_0wktd"]
+[ext_resource type="PackedScene" uid="uid://ccsocck3s5afe" path="res://data/Intergalactic_Spaceship-(FBX 7.4 binary).fbx" id="1_lyh7i"]
+[ext_resource type="Script" path="res://player.gd" id="2_8qbqi"]
+[ext_resource type="Environment" uid="uid://curcg1mpcwdn3" path="res://env.tres" id="3_0a8rj"]
+[ext_resource type="Script" path="res://core.gd" id="4_25w80"]
+[ext_resource type="Script" path="res://ui.gd" id="4_dehvo"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1u3xw"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
+
+[node name="Node3D" type="Node3D"]
+
+[node name="UI" type="Control" parent="." groups=["ui"]]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_0wktd")
+script = ExtResource("4_dehvo")
+
+[node name="Server" type="RichTextLabel" parent="UI" groups=["server_logs"]]
+custom_minimum_size = Vector2(300, 600)
+layout_mode = 1
+offset_left = -552.0
+offset_top = -300.0
+offset_right = -252.0
+offset_bottom = 300.0
+theme_override_font_sizes/normal_font_size = 10
+
+[node name="Title" type="Label" parent="UI" groups=["title"]]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -293.5
+offset_top = -312.845
+offset_right = 293.5
+offset_bottom = -188.845
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.377918, 0.703436, 0.901346, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 20
+theme_override_font_sizes/font_size = 110
+text = "Space Build"
+horizontal_alignment = 1
+
+[node name="CenterContainer" type="CenterContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -95.5
+offset_top = -34.5
+offset_right = 95.5
+offset_bottom = 34.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Loading" type="Label" parent="UI/CenterContainer" groups=["loading"]]
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Loading"
+horizontal_alignment = 1
+
+[node name="Modale" type="AspectRatioContainer" parent="UI" groups=["modale"]]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -181.5
+offset_top = -147.5
+offset_right = 181.5
+offset_bottom = 147.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="UI/Modale"]
+custom_minimum_size = Vector2(450, 350)
+layout_mode = 2
+
+[node name="Welcome" type="VSplitContainer" parent="UI/Modale/PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+dragger_visibility = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 0
+
+[node name="GameMode" type="TabContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer" groups=["gamemode_tabs"]]
+layout_mode = 2
+current_tab = 1
+clip_tabs = false
+use_hidden_tabs_for_min_size = true
+tab_focus_mode = 0
+
+[node name="Solo" type="VBoxContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode" groups=["solo_tab"]]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 0
+
+[node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 5
+
+[node name="Label" type="Label" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("StyleBoxFlat_1u3xw")
+text = "Worlds"
+
+[node name="Worlds" type="Tree" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo" groups=["worlds_tree"]]
+custom_minimum_size = Vector2(0, 145.48)
+layout_mode = 2
+focus_mode = 0
+columns = 2
+select_mode = 1
+scroll_horizontal_enabled = false
+
+[node name="Margins2" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="WorldCreation" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2"]
+layout_mode = 2
+dragger_visibility = 1
+
+[node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 5
+
+[node name="LineEdit" type="LineEdit" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation/Margins" groups=["world_field"]]
+custom_minimum_size = Vector2(230, 0)
+layout_mode = 2
+placeholder_text = "World name"
+
+[node name="Create" type="Button" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation" groups=["create_button"]]
+layout_mode = 2
+disabled = true
+text = "Create world"
+
+[node name="Online" type="VBoxContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode"]
+layout_mode = 2
+alignment = 1
+metadata/_tab_index = 1
+
+[node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="Host" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins"]
+layout_mode = 2
+split_offset = 100
+dragger_visibility = 1
+
+[node name="Label" type="Label" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins/Host"]
+layout_mode = 2
+text = "Host"
+
+[node name="LineEdit" type="LineEdit" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins/Host" groups=["host_field"]]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "localhost"
+
+[node name="Margins2" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="Port" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins2"]
+layout_mode = 2
+split_offset = 100
+dragger_visibility = 1
+
+[node name="Label" type="Label" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins2/Port"]
+layout_mode = 2
+text = "Port"
+
+[node name="LineEdit" type="LineEdit" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins2/Port" groups=["port_field"]]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "2567"
+
+[node name="Margins3" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="Encrypted" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins3"]
+layout_mode = 2
+split_offset = 350
+dragger_visibility = 1
+
+[node name="Label" type="Label" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins3/Encrypted"]
+layout_mode = 2
+text = "Encrypted"
+
+[node name="CheckButton" type="CheckButton" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins3/Encrypted" groups=["encrypted_switch"]]
+layout_mode = 2
+focus_mode = 0
+
+[node name="Margins4" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="Login" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins4"]
+layout_mode = 2
+split_offset = 100
+dragger_visibility = 1
+
+[node name="Label" type="Label" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins4/Login"]
+layout_mode = 2
+text = "Login"
+
+[node name="LineEdit" type="LineEdit" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins4/Login" groups=["login_field"]]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="UI/Modale/PanelContainer/Welcome"]
+layout_mode = 2
+size_flags_vertical = 0
+alignment = 1
+
+[node name="Margins4" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/Actions"]
+layout_mode = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 20
+
+[node name="Quit" type="Button" parent="UI/Modale/PanelContainer/Welcome/Actions/Margins4" groups=["quit_button"]]
+layout_mode = 2
+size_flags_vertical = 4
+focus_mode = 0
+text = "Quit"
+
+[node name="ErrorPlaceholder" type="Label" parent="UI/Modale/PanelContainer/Welcome/Actions" groups=["error_placeholder"]]
+custom_minimum_size = Vector2(276.435, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+
+[node name="Margins5" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/Actions"]
+layout_mode = 2
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 20
+
+[node name="Play" type="Button" parent="UI/Modale/PanelContainer/Welcome/Actions/Margins5" groups=["play_button"]]
+layout_mode = 2
+size_flags_vertical = 4
+focus_mode = 0
+disabled = true
+text = "Play"
+
+[node name="Core" type="Node" parent="." groups=["core"]]
+script = ExtResource("4_25w80")
+
+[node name="Player" type="Node3D" parent="."]
+script = ExtResource("2_8qbqi")
+
+[node name="Camera3D" type="Camera3D" parent="Player"]
+transform = Transform3D(1, -1.99925e-21, -2.13163e-14, 5.72987e-15, 0.963196, 0.268802, 2.05318e-14, -0.268802, 0.963196, 0, 1.73165, 3.75147)
+environment = ExtResource("3_0a8rj")
+
+[node name="Ship" parent="Player" instance=ExtResource("1_lyh7i")]
+transform = Transform3D(-0.213269, 0, 1.86447e-08, 0, 0.213269, 0, -1.86447e-08, 0, -0.213269, 0, 0, 0.868076)
+visible = false
+
+[node name="OmniLight3D" type="OmniLight3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.40637, 3.97017)
