@@ -375,6 +375,12 @@ impl Instance {
 
         let uuid = player.uuid;
 
+        for element in &self.elements {
+            if element.lock().await.uuid == uuid {
+                return Err(Error::PlayerAlreadyAuthenticated);
+            }
+        }
+
         self.elements.push(Arc::new(Mutex::new(player)));
 
         Ok(uuid)
