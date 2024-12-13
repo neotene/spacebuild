@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum BodyType {
@@ -21,16 +22,14 @@ impl From<u32> for BodyType {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Body {
     pub body_type: BodyType,
+    pub owner_system_id: Uuid,
 }
 
 impl Body {
-    pub fn new(body_type: BodyType) -> Body {
-        Self { body_type }
+    pub fn new(body_type: BodyType, owner_system_id: Uuid) -> Body {
+        Self {
+            body_type,
+            owner_system_id,
+        }
     }
-}
-
-impl Body {
-    // let body_type: i32 = row
-    //     .try_get("body_type")
-    //     .map_err(|err| Error::DbLoadSystemsError(err))?;
 }

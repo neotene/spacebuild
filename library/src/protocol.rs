@@ -26,9 +26,14 @@ pub enum PlayerAction {
     ShipState(ShipState),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PlayerInfo {
-    pub coords: Vector3<f32>,
+    pub coords: Vector3<f64>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ElementInfo {
+    pub coords: Vector3<f64>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -37,11 +42,11 @@ pub struct AuthInfo {
     pub(crate) message: String,
 }
 
-#[derive(Serialize, Deserialize)]
-pub enum ServerInfo {
+#[derive(Serialize, Deserialize, Clone)]
+pub enum GameInfo {
     Player(PlayerInfo),
     System(System),
-    PlayersInSystem(Vec<PlayerInfo>),
+    ElementsInSystem(Vec<ElementInfo>),
 }
 
 #[derive(Serialize, Deserialize)]

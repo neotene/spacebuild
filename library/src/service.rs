@@ -1,3 +1,4 @@
+use crate::game;
 use crate::game::element::Element;
 use crate::game::instance::Instance;
 use crate::protocol::AuthInfo;
@@ -13,6 +14,7 @@ use hyper_tungstenite::HyperWebsocket;
 use log::debug;
 use log::error;
 use log::info;
+use std::borrow::Borrow;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -43,10 +45,7 @@ pub async fn serve_http(
 
         tokio::spawn(async move {
             let instance_cln = Arc::clone(&instance);
-            if let Err(err) = serve_websocket(websocket, instance_cln).await {
-                log::info!("WS server error: {}", err);
-            }
-            ()
+            serve_websocket(websocket, instance_cln).await;
         });
 
         return Ok(ws_resp);
@@ -57,87 +56,110 @@ pub async fn serve_http(
     }
 }
 
-async fn serve_websocket(
-    websocket: HyperWebsocket,
-    instance: Arc<Mutex<Instance>>,
-) -> Result<(), tungstenite::error::Error> {
-    let mut websocket = websocket.await?;
+async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance>>) {
+    let mut maybe_websocket = websocket.await;
+    if maybe_websocket.is_err() {
+        error!("Websocket error: {}", maybe_websocket.err().unwrap());
+        return;
+    }
+    let mut websocket = maybe_websocket.unwrap();
+
     let mut uuid = Uuid::max();
 
-    while let Some(message) = websocket.next().await {
-        match message? {
-            Message::Text(msg) => {
-                let maybe_action: serde_json::Result<PlayerAction> =
-                    serde_json::from_str(msg.as_str());
+    let mut tick_delay = tokio::time::interval(std::time::Duration::from_millis(250));
 
-                let mut login_info = AuthInfo {
-                    success: false,
-                    message: "".to_string(),
-                };
+    loop {
+        tokio::select! {
+            _ = tick_delay.tick() => {
+                let maybe_player = instance.lock().await.get_galaxy().get_element(uuid).await;
 
-                if maybe_action.is_err() {
-                    login_info.message = "Invalid JSON".to_string();
-                } else {
-                    let maybe_login = maybe_action.unwrap();
-
-                    if let PlayerAction::Login(login) = maybe_login {
-                        info!("Login request");
-                        let maybe_uuid = Instance::authenticate(
-                            instance.lock().await.deref_mut(),
-                            &login.nickname,
-                        )
-                        .await;
-                        if maybe_uuid.is_err() {
-                            login_info.message = format!("{}", maybe_uuid.err().unwrap());
-                            info!("Login error: {}", login_info.message);
-                        } else {
-                            uuid = maybe_uuid.unwrap();
-
-                            info!("Login success for {}", uuid);
-
-                            login_info.success = true;
-                            login_info.message = uuid.to_string();
-                        }
-                    } else {
-                        let instance = instance.lock().await;
-                        let maybe_element = instance.get_element(uuid).await;
-                        if let Some(maybe_player) = maybe_element {
-                            if let Element::Player(player) =
-                                &mut maybe_player.lock().await.deref_mut().element
-                            {
-                                player.actions.push(maybe_login);
+                if let Some(player) = maybe_player {
+                    if let Element::Player(player) = &player.lock().await.borrow().element {
+                        for game_info in &player.game_infos {
+                            let game_info_str = serde_json::to_string(&game_info).unwrap();
+                            if websocket.send(Message::text(game_info_str)).await.is_err() {
+                                error!("Could not send to client");
                             }
-                        } else {
-                            error!("Can't find player {}", uuid);
                         }
                     }
+                } else {
+                    unreachable!()
                 }
-                let maybe_login_info_str = serde_json::to_string(&login_info);
-                assert!(maybe_login_info_str.is_ok());
-                websocket
-                    .send(Message::text(maybe_login_info_str.unwrap()))
-                    .await?;
-                debug!("Message sent");
-            }
-            Message::Binary(_msg) => {
-                websocket
-                    .send(Message::binary(b"Thank you, come again.".to_vec()))
-                    .await?;
-            }
-            Message::Ping(_msg) => {}
-            Message::Pong(_msg) => {}
-            Message::Close(_msg) => {
-                info!("WS close request received");
-                if !uuid.is_max() {
-                    instance.lock().await.leave(uuid).await;
+            },
+            Some(message) = websocket.next() => {
+                if message.is_err() {
+                    error!("Websocket read error: {}", message.err().unwrap());
+                    break;
                 }
-                break;
-            }
-            Message::Frame(_msg) => {
-                unreachable!();
+                match message.unwrap() {
+                    Message::Text(msg) => {
+                        let maybe_action: serde_json::Result<PlayerAction> =
+                            serde_json::from_str(msg.as_str());
+
+                        let mut login_info = AuthInfo {
+                            success: false,
+                            message: "".to_string(),
+                        };
+
+                        if maybe_action.is_err() {
+                            login_info.message = "Invalid JSON".to_string();
+                        } else {
+                            let maybe_login = maybe_action.unwrap();
+
+                            if let PlayerAction::Login(login) = maybe_login {
+                                info!("Login request");
+                                let maybe_uuid = Instance::authenticate(
+                                    instance.lock().await.deref_mut(),
+                                    &login.nickname,
+                                )
+                                .await;
+                                if maybe_uuid.is_err() {
+                                    login_info.message = format!("{}", maybe_uuid.err().unwrap());
+                                    info!("Login error: {}", login_info.message);
+                                } else {
+                                    uuid = maybe_uuid.unwrap();
+
+                                    info!("Login success for {}", uuid);
+
+                                    login_info.success = true;
+                                    login_info.message = uuid.to_string();
+                                }
+                            } else {
+                                let instance = instance.lock().await;
+                                let maybe_element = instance.get_galaxy().get_element(uuid).await;
+                                if let Some(maybe_player) = maybe_element {
+                                    if let Element::Player(player) =
+                                        &mut maybe_player.lock().await.deref_mut().element
+                                    {
+                                        player.actions.push(maybe_login);
+                                    }
+                                } else {
+                                    error!("Can't find player {}", uuid);
+                                }
+                            }
+                        }
+                        let maybe_login_info_str = serde_json::to_string(&login_info);
+                        assert!(maybe_login_info_str.is_ok());
+                        websocket
+                            .send(Message::text(maybe_login_info_str.unwrap()))
+                            .await;
+                        debug!("Message sent or error");
+                    }
+                    Message::Binary(_msg) => {}
+                    Message::Ping(_msg) => {}
+                    Message::Pong(_msg) => {}
+                    Message::Close(_msg) => {
+                        info!("WS close request received");
+                        if !uuid.is_max() {
+                            instance.lock().await.leave(uuid).await;
+                        }
+                        break;
+                    }
+                    Message::Frame(_msg) => {
+                        unreachable!();
+                    }
+                }
             }
         }
     }
-
-    Ok(())
 }

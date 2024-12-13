@@ -1,4 +1,4 @@
-use crate::protocol::PlayerAction;
+use crate::protocol::{GameInfo, PlayerAction};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -9,6 +9,7 @@ pub struct Player {
     pub(crate) current_system_uuid: Uuid,
     #[serde(skip_serializing)]
     pub(crate) actions: Vec<PlayerAction>,
+    pub(crate) game_infos: Vec<GameInfo>,
 }
 
 impl Player {
@@ -18,6 +19,7 @@ impl Player {
             own_system_uuid,
             current_system_uuid,
             actions: Vec::default(),
+            game_infos: Vec::default(),
         }
     }
 

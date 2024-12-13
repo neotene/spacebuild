@@ -1,21 +1,78 @@
 use super::element::{Body, Element};
-use super::elements::player::Player;
-use super::elements::system::System;
+use super::elements::player::{self, Player};
+use super::elements::system::{self, System};
 use super::repr::{Angle, Distance, GalacticCoords, Speed, SystemCoords};
 use crate::error::Error;
+use crate::protocol::{ElementInfo, GameInfo, MyVector3, PlayerInfo};
 use crate::Result;
 use futures::TryStreamExt;
 use rand::Rng;
 use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 use sqlx::{Pool, Sqlite, SqlitePool};
+use std::borrow::Borrow;
+use std::default;
 use std::fs::File;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
+
+type ElementsContainer = Vec<Arc<Mutex<ElementContainer>>>;
+#[derive(Default)]
+struct Galaxy {
+    elements: ElementsContainer,
+}
+
+impl Galaxy {
+    pub async fn get_systems(&self) -> ElementsContainer {
+        let mut collection = ElementsContainer::default();
+
+        for element in &self.elements {
+            if let Element::System(_) = element.lock().await.element {
+                collection.push(Arc::clone(&element));
+            }
+        }
+
+        collection
+    }
+
+    pub async fn get_players(&self) -> ElementsContainer {
+        let mut collection = ElementsContainer::default();
+
+        for element in &self.elements {
+            if let Element::Player(_) = element.lock().await.element {
+                collection.push(Arc::clone(&element));
+            }
+        }
+
+        collection
+    }
+
+    pub fn add_element(&mut self, element: Element, coords: GalacticCoords) -> Uuid {
+        let uuid = Uuid::new_v4();
+        self.elements
+            .push(Arc::new(Mutex::new(ElementContainer::new(
+                element,
+                uuid,
+                coords,
+                SystemCoords::default(),
+                0.,
+            ))));
+        uuid
+    }
+
+    pub async fn get_element(&self, uuid: Uuid) -> Option<Arc<Mutex<ElementContainer>>> {
+        for element in &self.elements {
+            if element.lock().await.uuid == uuid {
+                return Some(Arc::clone(element));
+            }
+        }
+        None
+    }
+}
 
 pub struct ElementContainer {
     pub(crate) element: Element,
@@ -42,9 +99,55 @@ impl ElementContainer {
         }
     }
 
-    pub fn update(&mut self, delta: f64) {
-        self.coords
-            .translate_from_local_delta(&(self.direction.normalize() * self.speed * delta));
+    pub async fn update(&mut self, delta: f64, others: &Galaxy) {
+        match &mut self.element {
+            Element::Body(_body) => {
+                self.coords
+                    .translate_from_local_delta(&(self.direction.normalize() * self.speed * delta));
+            }
+            Element::Player(player) => {
+                self.coords
+                    .translate_from_local_delta(&(self.direction.normalize() * self.speed * delta));
+                player.game_infos.push(GameInfo::Player(PlayerInfo {
+                    coords: self.coords.get_local_from_element(
+                        others
+                            .get_element(player.current_system_uuid)
+                            .await
+                            .unwrap()
+                            .lock()
+                            .await
+                            .borrow(),
+                    ),
+                }));
+
+                let player_current_system = others.get_element(player.current_system_uuid).await;
+                assert!(player_current_system.is_some());
+                let uuid = player_current_system.unwrap().lock().await.uuid;
+                let mut elements_infos = Vec::<ElementInfo>::default();
+                for element in &others.elements {
+                    if let Element::Body(body) = &element.lock().await.deref().element {
+                        if body.owner_system_id == uuid {
+                            let coords = self.coords.get_local_from_element(
+                                others
+                                    .get_element(player.current_system_uuid)
+                                    .await
+                                    .unwrap()
+                                    .lock()
+                                    .await
+                                    .borrow(),
+                            );
+                            elements_infos.push(ElementInfo { coords });
+                        }
+                    }
+                }
+                if !elements_infos.is_empty() {
+                    player
+                        .game_infos
+                        .push(GameInfo::ElementsInSystem(elements_infos));
+                }
+            }
+            Element::System(_system) => {}
+        }
     }
 
     pub fn get_uuid(&self) -> Uuid {
@@ -187,11 +290,9 @@ impl ElementContainer {
     }
 }
 
-type ElementsCollection = Vec<Arc<Mutex<ElementContainer>>>;
-
 pub struct Instance {
     pub(crate) pool: Pool<Sqlite>,
-    pub(crate) elements: ElementsCollection,
+    pub(crate) galaxy: Galaxy,
 }
 
 impl Instance {
@@ -214,7 +315,7 @@ impl Instance {
 
         let mut instance = Instance {
             pool,
-            elements: Vec::new(),
+            galaxy: Galaxy::default(),
         };
 
         instance.load_systems().await?;
@@ -245,7 +346,7 @@ impl Instance {
         let mut insert_systems_sql_str = "INSERT INTO System VALUES ".to_string();
         let mut insert_bodies_sql_str = "INSERT INTO Body VALUES ".to_string();
         let mut insert_players_sql_str = "INSERT INTO Player VALUES ".to_string();
-        for element in &self.elements {
+        for element in &self.galaxy.elements {
             let guard = element.lock().await;
             match guard.element {
                 Element::System(_) => {
@@ -287,54 +388,8 @@ impl Instance {
         Ok(())
     }
 
-    pub fn get_elements(&self) -> &ElementsCollection {
-        &self.elements
-    }
-
-    pub async fn get_systems(&self) -> ElementsCollection {
-        let mut collection = ElementsCollection::new();
-
-        for element in &self.elements {
-            if let Element::System(_) = element.lock().await.element {
-                collection.push(Arc::clone(&element));
-            }
-        }
-
-        collection
-    }
-
-    pub async fn get_players(&self) -> ElementsCollection {
-        let mut collection = ElementsCollection::new();
-
-        for element in &self.elements {
-            if let Element::Player(_) = element.lock().await.element {
-                collection.push(Arc::clone(&element));
-            }
-        }
-
-        collection
-    }
-
-    pub fn add_element(&mut self, element: Element, coords: GalacticCoords) -> Uuid {
-        let uuid = Uuid::new_v4();
-        self.elements
-            .push(Arc::new(Mutex::new(ElementContainer::new(
-                element,
-                uuid,
-                coords,
-                SystemCoords::default(),
-                0.,
-            ))));
-        uuid
-    }
-
-    pub async fn get_element(&self, uuid: Uuid) -> Option<Arc<Mutex<ElementContainer>>> {
-        for element in &self.elements {
-            if element.lock().await.uuid == uuid {
-                return Some(Arc::clone(element));
-            }
-        }
-        None
+    pub fn get_galaxy(&self) -> &Galaxy {
+        &self.galaxy
     }
 
     pub async fn load_systems(&mut self) -> Result<()> {
@@ -345,7 +400,8 @@ impl Instance {
             .await
             .map_err(|err| Error::DbLoadSystemsError(err))?
         {
-            self.elements
+            self.galaxy
+                .elements
                 .push(Arc::new(Mutex::new(ElementContainer::from_sqlite_row(
                     &row,
                 )?)));
@@ -375,29 +431,29 @@ impl Instance {
 
         let uuid = player.uuid;
 
-        for element in &self.elements {
+        for element in &self.galaxy.elements {
             if element.lock().await.uuid == uuid {
                 return Err(Error::PlayerAlreadyAuthenticated);
             }
         }
 
-        self.elements.push(Arc::new(Mutex::new(player)));
+        self.galaxy.elements.push(Arc::new(Mutex::new(player)));
 
         Ok(uuid)
     }
 
     pub async fn leave(&mut self, uuid: Uuid) {
         let mut i = 0;
-        for element in &self.elements {
+        for element in &self.galaxy.elements {
             if element.lock().await.uuid == uuid {
                 break;
             }
             i += 1;
         }
 
-        assert!(i < self.elements.len());
+        assert!(i < self.galaxy.elements.len());
 
-        self.elements.remove(i);
+        self.galaxy.elements.remove(i);
     }
 
     pub async fn authenticate(instance: &mut Instance, nickname: &String) -> Result<Uuid> {
@@ -407,7 +463,10 @@ impl Instance {
             Err(Error::DbLoadPlayerByNicknameNotFound) => {
                 let player_system = gen_system();
                 let player_sys_uuid = player_system.uuid;
-                instance.elements.push(Arc::new(Mutex::new(player_system)));
+                instance
+                    .galaxy
+                    .elements
+                    .push(Arc::new(Mutex::new(player_system)));
 
                 let player = ElementContainer::new(
                     Element::Player(Player::new(
@@ -421,7 +480,7 @@ impl Instance {
                     0.,
                 );
                 let uuid = player.uuid;
-                instance.elements.push(Arc::new(Mutex::new(player)));
+                instance.galaxy.elements.push(Arc::new(Mutex::new(player)));
                 instance.sync_to_db().await?;
 
                 Ok(uuid)
@@ -432,24 +491,29 @@ impl Instance {
     }
 
     pub async fn update(&mut self, delta: f64) -> bool {
-        for element in &mut self.elements {
-            element.lock().await.deref_mut().update(delta);
+        for element in &mut self.galaxy.elements {
+            element.lock().await.deref_mut().update(delta, self.galaxy);
         }
         false
     }
 }
 
-pub fn gen_system() -> ElementContainer {
+pub fn gen_system() -> (ElementContainer, Vec<ElementContainer>) {
     let mut rng = rand::thread_rng();
     let angle_1 = rng.gen_range(0..15000) as f64 / 10000.;
     let angle_2 = rng.gen_range(0..15000) as f64 / 10000.;
     let distance = rng.gen_range(0.0..10000000000.);
 
-    ElementContainer::new(
-        Element::System(System::default()),
-        Uuid::new_v4(),
-        GalacticCoords::new(angle_1, angle_2, distance),
-        SystemCoords::default(),
-        0.,
+    let bodies_in_system = Vec::<ElementContainer>::default();
+
+    (
+        ElementContainer::new(
+            Element::System(System::default()),
+            Uuid::new_v4(),
+            GalacticCoords::new(angle_1, angle_2, distance),
+            SystemCoords::default(),
+            0.,
+        ),
+        bodies_in_system,
     )
 }

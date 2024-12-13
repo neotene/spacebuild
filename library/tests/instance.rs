@@ -175,7 +175,7 @@ mod space_build_tests_instance {
 
         let uuid = instance.add_element(Element::Player(player), GalacticCoords::new(1., 2., 3.));
 
-        assert_eq!(1, instance.get_elements().len());
+        assert_eq!(1, instance.get_galaxy().len());
         assert_eq!(true, instance.get_element(uuid).await.is_some());
 
         let player_cmp = instance.get_element(uuid).await.unwrap();
