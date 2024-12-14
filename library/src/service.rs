@@ -74,12 +74,13 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                     continue;
                 }
                 trace!("0");
-                let maybe_player = instance.lock().await.get_galaxy().get_galactic(uuid).await;
+                let mut guard = instance.lock().await;
+                let maybe_player = guard.borrow_galaxy_mut().borrow_galactic_mut(uuid).await;
 
                 trace!("1");
                 if let Some(player) = maybe_player {
                     trace!("2");
-                    if let Element::Player(player) = &mut player.lock().await.deref_mut().element {
+                    if let Element::Player(player) = &mut player.element {
                         trace!("3");
                         for game_info in &player.game_infos {
                             trace!("4");
@@ -133,11 +134,11 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                                     login_info.message = uuid.to_string();
                                 }
                             } else {
-                                let instance = instance.lock().await;
-                                let maybe_element = instance.get_galaxy().get_galactic(uuid).await;
+                                let mut instance = instance.lock().await;
+                                let maybe_element = instance.borrow_galaxy_mut().borrow_galactic_mut(uuid).await;
                                 if let Some(maybe_player) = maybe_element {
                                     if let Element::Player(player) =
-                                        &mut maybe_player.lock().await.deref_mut().element
+                                        &mut maybe_player.element
                                     {
                                         player.actions.push(maybe_login);
                                     }

@@ -2,7 +2,7 @@ use nalgebra::Vector3;
 use scilib::coordinate::{cartesian, spherical};
 use serde::{Deserialize, Serialize};
 
-use super::instance::Galactic;
+use super::galactic::Galactic;
 
 pub type Angle = f64; // radian
 pub type Distance = f64; // cm

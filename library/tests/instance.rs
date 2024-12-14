@@ -41,9 +41,9 @@ mod space_build_tests_instance {
             .timeout(Duration::from_secs(TIMEOUT_DURATION))
             .await??;
 
-        let systems = instance.get_galaxy().get_systems().await;
+        let systems = instance.borrow_galaxy().get_systems().await;
         assert_eq!(0, systems.len());
-        let players = instance.get_galaxy().get_players().await;
+        let players = instance.borrow_galaxy().get_players().await;
         assert_eq!(0, players.len());
 
         let pool = SqlitePool::connect(format!("sqlite:{}", db_path).as_str())
@@ -106,24 +106,25 @@ mod space_build_tests_instance {
 
         let uuid_1 = Uuid::from_str(uuid_str).unwrap();
 
-        let systems = instance.get_galaxy().get_systems().await;
+        let systems = instance.borrow_galaxy().get_systems().await;
         assert_eq!(1, systems.len());
 
         let mut find = false;
         for system in systems {
-            if system.lock().await.get_uuid() == uuid_1 {
+            if system.get_uuid() == uuid_1 {
                 find = true;
                 break;
             }
         }
         assert!(find);
 
-        let system = instance.get_galaxy().get_galactic(uuid_1).await.unwrap();
+        let system = instance
+            .borrow_galaxy()
+            .borrow_galactic(uuid_1)
+            .await
+            .unwrap();
 
-        assert_eq!(
-            GalacticCoords::new(1., 2., 3.),
-            system.lock().await.get_coords()
-        );
+        assert_eq!(GalacticCoords::new(1., 2., 3.), system.get_coords());
 
         Ok(())
     }
@@ -139,13 +140,13 @@ mod space_build_tests_instance {
         let sys_1 = element::System::default();
 
         let uuid_1 = instance
-            .get_galaxy_mut()
+            .borrow_galaxy_mut()
             .add_galactic(Element::System(sys_1), GalacticCoords::new(1., 2., 3.));
 
         let sys_2 = element::System::default();
 
         let uuid_2 = instance
-            .get_galaxy_mut()
+            .borrow_galaxy_mut()
             .add_galactic(Element::System(sys_2), GalacticCoords::new(4., 5., 6.));
 
         instance
@@ -157,39 +158,41 @@ mod space_build_tests_instance {
             .timeout(Duration::from_secs(TIMEOUT_DURATION))
             .await??;
 
-        let systems = instance.get_galaxy().get_systems().await;
+        let systems = instance.borrow_galaxy().get_systems().await;
         assert_eq!(2, systems.len());
         let mut find = false;
         for system in &systems {
-            if system.lock().await.get_uuid() == uuid_1 {
+            if system.get_uuid() == uuid_1 {
                 find = true;
                 break;
             }
         }
         assert!(find);
 
-        let system = instance.get_galaxy().get_galactic(uuid_1).await.unwrap();
+        let system = instance
+            .borrow_galaxy()
+            .borrow_galactic(uuid_1)
+            .await
+            .unwrap();
 
-        assert_eq!(
-            GalacticCoords::new(1., 2., 3.),
-            system.lock().await.get_coords()
-        );
+        assert_eq!(GalacticCoords::new(1., 2., 3.), system.get_coords());
 
         let mut find = false;
         for system in &systems {
-            if system.lock().await.get_uuid() == uuid_2 {
+            if system.get_uuid() == uuid_2 {
                 find = true;
                 break;
             }
         }
         assert!(find);
 
-        let system = instance.get_galaxy().get_galactic(uuid_2).await.unwrap();
+        let system = instance
+            .borrow_galaxy()
+            .borrow_galactic(uuid_2)
+            .await
+            .unwrap();
 
-        assert_eq!(
-            GalacticCoords::new(4., 5., 6.),
-            system.lock().await.get_coords()
-        );
+        assert_eq!(GalacticCoords::new(4., 5., 6.), system.get_coords());
 
         Ok(())
     }
@@ -205,30 +208,32 @@ mod space_build_tests_instance {
         let player = element::Player::new("player123".to_string(), Uuid::new_v4(), Uuid::new_v4());
 
         let uuid = instance
-            .get_galaxy_mut()
+            .borrow_galaxy_mut()
             .add_galactic(Element::Player(player), GalacticCoords::new(1., 2., 3.));
 
-        assert_eq!(1, instance.get_galaxy().get_players().await.len());
+        assert_eq!(1, instance.borrow_galaxy().get_players().await.len());
         assert_eq!(
             true,
-            instance.get_galaxy().get_galactic(uuid).await.is_some()
+            instance
+                .borrow_galaxy()
+                .borrow_galactic(uuid)
+                .await
+                .is_some()
         );
 
-        let player_cmp = instance.get_galaxy().get_galactic(uuid).await.unwrap();
+        let player_cmp = instance
+            .borrow_galaxy()
+            .borrow_galactic(uuid)
+            .await
+            .unwrap();
 
-        assert_eq!(player_cmp.lock().await.get_uuid(), uuid);
-        assert_eq!(
-            player_cmp.lock().await.get_direction(),
-            Vector3::new(0., 0., 0.)
-        );
-        assert_eq!(
-            player_cmp.lock().await.get_coords(),
-            GalacticCoords::new(1., 2., 3.)
-        );
+        assert_eq!(player_cmp.get_uuid(), uuid);
+        assert_eq!(player_cmp.get_direction(), Vector3::new(0., 0., 0.));
+        assert_eq!(player_cmp.get_coords(), GalacticCoords::new(1., 2., 3.));
 
-        assert_eq!(0., player_cmp.lock().await.get_speed());
+        assert_eq!(0., player_cmp.get_speed());
 
-        if let Element::Player(player_cmp) = player_cmp.lock().await.get_element() {
+        if let Element::Player(player_cmp) = player_cmp.get_element() {
             assert_eq!("player123", player_cmp.get_nickname());
         }
 
@@ -273,20 +278,18 @@ mod space_build_tests_instance {
 
         assert_eq!(uuid.to_string(), uuid_str);
 
-        let player_cmp = instance.get_galaxy().get_galactic(uuid).await.unwrap();
+        let player_cmp = instance
+            .borrow_galaxy()
+            .borrow_galactic(uuid)
+            .await
+            .unwrap();
 
-        assert_eq!(player_cmp.lock().await.get_uuid(), uuid);
-        assert_eq!(
-            player_cmp.lock().await.get_direction(),
-            Vector3::new(5., 6., 7.)
-        );
-        assert_eq!(
-            player_cmp.lock().await.get_coords(),
-            GalacticCoords::new(1., 2., 3.)
-        );
-        assert_eq!(4., player_cmp.lock().await.get_speed());
+        assert_eq!(player_cmp.get_uuid(), uuid);
+        assert_eq!(player_cmp.get_direction(), Vector3::new(5., 6., 7.));
+        assert_eq!(player_cmp.get_coords(), GalacticCoords::new(1., 2., 3.));
+        assert_eq!(4., player_cmp.get_speed());
 
-        if let Element::Player(player_cmp) = player_cmp.lock().await.get_element() {
+        if let Element::Player(player_cmp) = player_cmp.get_element() {
             assert_eq!("player123", player_cmp.get_nickname());
         }
 
