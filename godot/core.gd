@@ -160,7 +160,7 @@ func play_solo(play_mode) -> void:
 		world_text = ui.worlds_tree.get_selected().get_text(0)
 		
 	assert(!world_text.is_empty())
-	var args = ["0", "--no-input", "--instance", ProjectSettings.globalize_path("user://%s.spdb" % world_text)]
+	var args = ["0", "--no-input", "--instance", ProjectSettings.globalize_path("user://%s.sbdb" % world_text)]
 	if !OS.has_feature("release"):
 		OS.set_environment("RUST_LOG", "TRACE")	
 		server = OS.execute_with_pipe("../target/debug/spacebuild-server", args)

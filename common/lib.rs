@@ -2,7 +2,7 @@ pub mod trace {
     use colored::Colorize;
     use regex::Regex;
     use std::io::Write;
-    use std::thread;
+    use std::{env, thread};
     use tokio::time::Instant;
 
     const THREAD_ID_REGEX_STR: &str = "ThreadId\\(([[:digit:]]+)\\)";
@@ -12,7 +12,12 @@ pub mod trace {
         let target_regex_str = if let Some(filter) = maybe_filter {
             filter
         } else {
-            format!("(.*)")
+            let maybe_trace_filter = env::var("SPACEBUILD_TRACE_FILTER");
+            if maybe_trace_filter.is_err() {
+                format!("(.*)")
+            } else {
+                maybe_trace_filter.unwrap()
+            }
         };
 
         let mut binding = env_logger::builder();

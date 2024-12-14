@@ -157,7 +157,9 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                     Message::Close(_msg) => {
                         info!("WS close request received");
                         if !uuid.is_max() {
-                            instance.lock().await.leave(uuid).await;
+                            if instance.lock().await.leave(uuid).await.is_err() {
+                                unreachable!()
+                            }
                         }
                         break;
                     }

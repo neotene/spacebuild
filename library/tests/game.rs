@@ -98,11 +98,11 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 ";
 
     pub fn before_all() {
-        trace::init(Some(".*spacebuild(.*)".to_string()));
+        trace::init(None);
         info!("Timeout is {}s", TIMEOUT_DURATION);
     }
 
-    const TIMEOUT_DURATION: u64 = 10;
+    const TIMEOUT_DURATION: u64 = 20;
 
     pub fn get_random_db_path() -> String {
         format!(

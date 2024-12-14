@@ -19,7 +19,7 @@ mod space_build_tests_instance {
     use uuid::Uuid;
 
     pub fn before_all() {
-        trace::init(Some("(.*)".to_string()));
+        trace::init(None);
         info!("Timeout is {}s", TIMEOUT_DURATION);
     }
 

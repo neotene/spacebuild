@@ -19,5 +19,5 @@
 *.p7c
 
 !data/*
-**.spdb
+**.sbdb
 .vscode/

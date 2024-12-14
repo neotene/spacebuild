@@ -23,7 +23,7 @@ struct Args {
     )]
     tls: Option<Vec<String>>,
 
-    #[arg(short, long, default_value = "galaxy.spdb")]
+    #[arg(short, long, default_value = "galaxy.sbdb")]
     instance: String,
 
     #[arg(short, long, default_value_t = false)]

@@ -123,7 +123,7 @@ func list_worlds():
 	root = worlds_tree.create_item()
 	for file in files:
 		var item = worlds_tree.create_item(root) as TreeItem
-		item.set_text(0, file.trim_suffix(".spdb"))
+		item.set_text(0, file.trim_suffix(".sbdb"))
 
 func _process(_delta: float) -> void:
 	pass

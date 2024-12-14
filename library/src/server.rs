@@ -91,7 +91,7 @@ pub async fn run(
     loop {
         tokio::select! {
             // ----------------------------------------------------
-            // ON TICK DELAY---------------------------------------
+            // ON UPDATE TICK DELAY---------------------------------------
             _ = update_tick_delay.tick() => {
                 debug!("Update Tick");
 
@@ -104,6 +104,8 @@ pub async fn run(
                 ref_instant = now;
                 instance.lock().await.galaxy.update(delta.as_secs_f64()).await;
             },
+            // ----------------------------------------------------
+            // ON SAVE TICK DELAY---------------------------------------
             _ = save_tick_delay.tick() => {
                 debug!("Save Tick");
                 instance.lock().await.sync_to_db().await?;

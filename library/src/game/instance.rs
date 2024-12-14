@@ -85,25 +85,32 @@ impl Instance {
             }
         }
 
+        let suffix = "ON CONFLICT(uuid) DO UPDATE SET uuid=uuid";
         if let Some(sql_str) = insert_systems_sql_str.strip_suffix(", ") {
+            let sql_str = format!("{} {}", sql_str, suffix);
+            trace!("{}", sql_str);
             let _ = sqlx::query(&sql_str)
                 .fetch_all(&self.pool)
                 .await
-                .map_err(|err| Error::DbSyncToDbError(err))?;
+                .map_err(|err| Error::DbSyncSystemsToDbError(err))?;
         }
 
         if let Some(sql_str) = insert_bodies_sql_str.strip_suffix(", ") {
+            let sql_str = format!("{} {}", sql_str, suffix);
+            trace!("{}", sql_str);
             let _ = sqlx::query(&sql_str)
                 .fetch_all(&self.pool)
                 .await
-                .map_err(|err| Error::DbSyncToDbError(err))?;
+                .map_err(|err| Error::DbSyncBodiesToDbError(err))?;
         }
 
         if let Some(sql_str) = insert_players_sql_str.strip_suffix(", ") {
+            let sql_str = format!("{} {}", sql_str, suffix);
+            trace!("{}", sql_str);
             let _ = sqlx::query(&sql_str)
                 .fetch_all(&self.pool)
                 .await
-                .map_err(|err| Error::DbSyncToDbError(err))?;
+                .map_err(|err| Error::DbSyncPlayersToDbError(err))?;
         }
 
         Ok(())
@@ -132,6 +139,14 @@ impl Instance {
     }
 
     pub async fn load_player_by_nickname(&mut self, nickname: String) -> Result<Uuid> {
+        for galactic in &self.galaxy.galactics {
+            if let Element::Player(player) = &galactic.element {
+                if player.nickname == nickname {
+                    return Err(Error::PlayerAlreadyAuthenticated);
+                }
+            }
+        }
+
         trace!("Trying to load player {} from DB...", nickname);
         let rows = sqlx::query("SELECT * FROM Player WHERE nickname=?")
             .bind(&nickname)
@@ -144,7 +159,7 @@ impl Instance {
         }
 
         if rows.len() > 1 {
-            return Err(Error::DbLoadPlayerByNicknameFoundTooMany);
+            unreachable!()
         }
 
         let first = rows.first().unwrap();
@@ -153,18 +168,12 @@ impl Instance {
 
         let uuid = player.uuid;
 
-        for element in &self.galaxy.galactics {
-            if element.uuid == uuid {
-                return Err(Error::PlayerAlreadyAuthenticated);
-            }
-        }
-
         self.galaxy.galactics.push(player);
 
         Ok(uuid)
     }
 
-    pub async fn leave(&mut self, uuid: Uuid) {
+    pub async fn leave(&mut self, uuid: Uuid) -> Result<()> {
         let mut i = 0;
         for element in &self.galaxy.galactics {
             if element.uuid == uuid {
@@ -175,7 +184,11 @@ impl Instance {
 
         assert!(i < self.galaxy.galactics.len());
 
+        self.sync_to_db().await?;
+
         self.galaxy.galactics.remove(i);
+
+        Ok(())
     }
 
     pub async fn authenticate(&mut self, nickname: &String) -> Result<Uuid> {

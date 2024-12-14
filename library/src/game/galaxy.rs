@@ -8,14 +8,15 @@ use crate::Result;
 use rand::Rng;
 use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
+use std::f64::consts::PI;
 use std::str::FromStr;
 use uuid::Uuid;
 
 pub fn gen_system() -> (Galactic, Vec<Galactic>) {
     let mut rng = rand::thread_rng();
-    let angle_1 = rng.gen_range(0..15000) as f64 / 10000.;
-    let angle_2 = rng.gen_range(0..15000) as f64 / 10000.;
-    let distance = rng.gen_range(0.0..10000000000.);
+    let angle_1 = rng.gen_range(0.0..PI);
+    let angle_2 = rng.gen_range(0.0..PI);
+    let distance = rng.gen_range(0.0..100000.);
 
     let uuid = Uuid::new_v4();
     let coords = GlobalCoords::new(angle_1, angle_2, distance);
@@ -30,12 +31,12 @@ pub fn gen_system() -> (Galactic, Vec<Galactic>) {
 
     let mut bodies_in_system = Vec::<Galactic>::default();
 
-    for _ in 1..100 {
-        let x = rng.gen_range(0..1000) as f64;
-        let y = rng.gen_range(0..1000) as f64;
-        let z = rng.gen_range(0..10) as f64;
+    let mut cln = coords.clone();
+    for _ in 1..2 {
+        let x = rng.gen_range(0.0..1000.);
+        let y = rng.gen_range(0.0..1000.);
+        let z = rng.gen_range(0.0..10.);
 
-        let mut cln = coords.clone();
         cln.translate_from_local_delta(&LocalCoords::new(x, y, z));
         bodies_in_system.push(Galactic::new(
             Element::Body(Body::new(BodyType::Asteroid, uuid)),
@@ -57,7 +58,7 @@ pub struct Galaxy {
 }
 
 impl Galaxy {
-    pub async fn update(&mut self, delta: f64) -> bool {
+    pub async fn update(&mut self, delta: f64) {
         let cln = self.clone();
 
         for galactic in &mut self.galactics {
@@ -83,7 +84,6 @@ impl Galaxy {
                 Element::System(_system) => {}
             }
         }
-        false
     }
 
     pub fn borrow_bodies_of_system(&self, system_uuid: Uuid) -> Vec<&Galactic> {

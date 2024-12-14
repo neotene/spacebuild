@@ -28,8 +28,12 @@ pub enum Error {
     DbLoadSystemsError(sqlx::Error),
     #[error("Can't open DB {0}: {1}")]
     DbOpenError(String, sqlx::Error),
-    #[error("Can't sync to DB: {0}")]
-    DbSyncToDbError(sqlx::Error),
+    #[error("Can't sync systems to DB: {0}")]
+    DbSyncSystemsToDbError(sqlx::Error),
+    #[error("Can't sync bodies to DB: {0}")]
+    DbSyncBodiesToDbError(sqlx::Error),
+    #[error("Can't sync players to DB: {0}")]
+    DbSyncPlayersToDbError(sqlx::Error),
     #[error("Error while trying to deserialize authentication response from server {0} {1}")]
     DeserializeAuthenticationResponseError(serde_json::Error, String),
     #[error("Failed to serialize login")]
