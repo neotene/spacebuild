@@ -45,7 +45,9 @@ pub enum Error {
     #[error("Can't build tls config: {0}")]
     TlsConfigBuildError(rustls::Error),
     #[error("Websocket send: {0}")]
-    WSCantSend(tungstenite::Error),
+    WsCantSend(tungstenite::Error),
+    #[error("Websocket read: {0}")]
+    WsCantRead(tungstenite::Error),
     #[error("Unexpected response from server: {0}")]
     UnexpectedResponse(String),
     #[error("Bad UUID: {0} in \"{1}\"")]

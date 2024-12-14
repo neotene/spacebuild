@@ -1,7 +1,8 @@
 use super::element::{Body, Element};
+use super::elements::body::BodyType;
 use super::elements::player::Player;
 use super::elements::system::System;
-use super::repr::{Angle, Distance, GalacticCoords, Speed, SystemCoords};
+use super::repr::{Angle, Distance, GalacticCoords, LocalCoords, Speed};
 use crate::error::Error;
 use crate::protocol::{ElementInfo, GameInfo, PlayerInfo};
 use crate::Result;
@@ -57,7 +58,7 @@ impl Galaxy {
                 element,
                 uuid,
                 coords,
-                SystemCoords::default(),
+                LocalCoords::default(),
                 0.,
             ))));
         uuid
@@ -77,7 +78,7 @@ pub struct ElementContainer {
     pub(crate) element: Element,
     pub(crate) uuid: Uuid,
     pub(crate) coords: GalacticCoords,
-    pub(crate) direction: SystemCoords,
+    pub(crate) direction: LocalCoords,
     pub(crate) speed: Speed,
 }
 
@@ -86,7 +87,7 @@ impl ElementContainer {
         element: Element,
         uuid: Uuid,
         coords: GalacticCoords,
-        direction: SystemCoords,
+        direction: LocalCoords,
         speed: Speed,
     ) -> Self {
         Self {
@@ -98,20 +99,26 @@ impl ElementContainer {
         }
     }
 
-    pub async fn update(&mut self, delta: f64, others: &Galaxy) {
-        match &mut self.element {
+    pub async fn update(element: Arc<Mutex<ElementContainer>>, delta: f64, others: &Galaxy) {
+        let mut element_container = element.lock().await;
+        match &mut element_container.element {
             Element::Body(_body) => {
-                self.coords
-                    .translate_from_local_delta(&(self.direction.normalize() * self.speed * delta));
+                let direction = element_container.direction.normalize();
+                let speed = element_container.speed;
+                element_container
+                    .coords
+                    .translate_from_local_delta(&(&direction * speed * delta));
             }
             Element::Player(player) => {
                 for action in &player.actions {
                     match action {
                         crate::protocol::PlayerAction::ShipState(ship_state) => {
                             if ship_state.throttle_up {
-                                self.coords.translate_from_local_delta(
-                                    &(self.direction.normalize() * self.speed * delta),
-                                );
+                                let direction = element_container.direction.normalize();
+                                let speed = element_container.speed;
+                                element_container
+                                    .coords
+                                    .translate_from_local_delta(&(&direction * speed * delta));
                             }
                         }
                         _ => {
@@ -123,7 +130,7 @@ impl ElementContainer {
                 player.actions.clear();
 
                 player.game_infos.push(GameInfo::Player(PlayerInfo {
-                    coords: self.coords.get_local_from_element(
+                    coords: element_container.coords.get_local_from_element(
                         others
                             .get_element(player.current_system_uuid)
                             .await
@@ -141,7 +148,7 @@ impl ElementContainer {
                 for element in &others.elements {
                     if let Element::Body(body) = &element.lock().await.deref().element {
                         if body.owner_system_id == uuid {
-                            let coords = self.coords.get_local_from_element(
+                            let coords = element_container.coords.get_local_from_element(
                                 others
                                     .get_element(player.current_system_uuid)
                                     .await
@@ -172,7 +179,7 @@ impl ElementContainer {
         self.coords.clone()
     }
 
-    pub fn get_direction(&self) -> SystemCoords {
+    pub fn get_direction(&self) -> LocalCoords {
         self.direction
     }
 
@@ -193,8 +200,12 @@ impl ElementContainer {
             Element::System(_) => {}
             Element::Body(body) => {
                 sql_insert_line += format!(
-                    ", {}, {}, {}, {}",
-                    self.direction.x, self.direction.y, self.direction.z, body.body_type as u32
+                    ", {}, {}, {}, {}, '{}'",
+                    self.direction.x,
+                    self.direction.y,
+                    self.direction.z,
+                    body.body_type as u32,
+                    body.owner_system_id
                 )
                 .as_str()
             }
@@ -267,7 +278,7 @@ impl ElementContainer {
                     )),
                     uuid,
                     GalacticCoords::new(phi, theta, distance),
-                    SystemCoords::new(
+                    LocalCoords::new(
                         direction_x.map_err(|err| Error::DbLoadSystemsError(err))?,
                         direction_y,
                         direction_z,
@@ -285,7 +296,7 @@ impl ElementContainer {
                     )),
                     uuid,
                     GalacticCoords::new(phi, theta, distance),
-                    SystemCoords::new(
+                    LocalCoords::new(
                         direction_x.map_err(|err| Error::DbLoadSystemsError(err))?,
                         direction_y,
                         direction_z,
@@ -300,7 +311,7 @@ impl ElementContainer {
                 Element::System(System::default()),
                 uuid,
                 GalacticCoords::new(phi, theta, distance),
-                SystemCoords::default(),
+                LocalCoords::default(),
                 speed,
             )
         };
@@ -502,7 +513,7 @@ impl Instance {
                     )),
                     Uuid::new_v4(),
                     GalacticCoords::default(),
-                    SystemCoords::default(),
+                    LocalCoords::default(),
                     0.,
                 );
                 let uuid = player.uuid;
@@ -531,16 +542,34 @@ pub fn gen_system() -> (ElementContainer, Vec<ElementContainer>) {
     let angle_2 = rng.gen_range(0..15000) as f64 / 10000.;
     let distance = rng.gen_range(0.0..10000000000.);
 
-    let bodies_in_system = Vec::<ElementContainer>::default();
+    let uuid = Uuid::new_v4();
+    let coords = GalacticCoords::new(angle_1, angle_2, distance);
 
-    (
-        ElementContainer::new(
-            Element::System(System::default()),
+    let system = ElementContainer::new(
+        Element::System(System::default()),
+        uuid,
+        coords.clone(),
+        LocalCoords::default(),
+        0.,
+    );
+
+    let mut bodies_in_system = Vec::<ElementContainer>::default();
+
+    for _ in 1..100 {
+        let x = rng.gen_range(0..1000) as f64;
+        let y = rng.gen_range(0..1000) as f64;
+        let z = rng.gen_range(0..10) as f64;
+
+        let mut cln = coords.clone();
+        cln.translate_from_local_delta(&LocalCoords::new(x, y, z));
+        bodies_in_system.push(ElementContainer::new(
+            Element::Body(Body::new(BodyType::Asteroid, uuid)),
             Uuid::new_v4(),
-            GalacticCoords::new(angle_1, angle_2, distance),
-            SystemCoords::default(),
+            cln,
+            LocalCoords::default(),
             0.,
-        ),
-        bodies_in_system,
-    )
+        ));
+    }
+
+    (system, bodies_in_system)
 }

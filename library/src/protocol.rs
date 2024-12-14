@@ -17,7 +17,7 @@ pub struct MyVector3 {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ShipState {
     pub throttle_up: bool,
-    pub direction: MyVector3,
+    pub direction: Vector3<f64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

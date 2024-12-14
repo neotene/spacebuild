@@ -25,7 +25,7 @@ pub mod trace {
             }
 
             if results.len() != 1 {
-                return write!(buf, "<target>");
+                return write!(buf, "");
             }
 
             let target_str = results.last().unwrap();

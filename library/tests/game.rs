@@ -6,6 +6,7 @@ use test_helpers_async::*;
 mod spacebuild_tests_game {
     use std::{env, fs::File, sync::Arc};
 
+    use anyhow::anyhow;
     use common::trace;
     use futures_time::{future::FutureExt, time::Duration};
     use log::info;
@@ -17,6 +18,7 @@ mod spacebuild_tests_game {
             repr::GalacticCoords,
         },
         network::tls::{ClientPki, ServerPki},
+        protocol::GameInfo,
         server,
     };
     use tokio::{net::TcpListener, sync::Mutex};
@@ -96,7 +98,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
 ";
 
     pub fn before_all() {
-        trace::init(Some("(.*)".to_string()));
+        trace::init(Some(".*spacebuild(.*)".to_string()));
         info!("Timeout is {}s", TIMEOUT_DURATION);
     }
 
@@ -119,11 +121,17 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
         tokio::task::JoinHandle<spacebuild::Result<()>>,
         u16,
     )> {
-        let listener = TcpListener::bind("localhost:0").await?;
+        let listener = TcpListener::bind("localhost:0")
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
         let addr = listener.local_addr()?;
         let port = addr.port();
 
-        let instance = Arc::new(Mutex::new(Instance::from_path(db_path.as_str()).await?));
+        let instance = Arc::new(Mutex::new(
+            Instance::from_path(db_path.as_str())
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??,
+        ));
 
         let instance_cln = Arc::clone(&instance);
 
@@ -158,9 +166,13 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     async fn case_01_connection() -> anyhow::Result<()> {
         let db_path = get_random_db_path();
 
-        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false).await?;
+        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
-        Client::connect(format!("localhost:{}", port).as_str(), None).await?;
+        Client::connect(format!("localhost:{}", port).as_str(), None)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
         send_stop.send(())?;
 
@@ -175,11 +187,17 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     async fn case_02_double_connection() -> anyhow::Result<()> {
         let db_path = get_random_db_path();
 
-        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false).await?;
+        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
-        let _ = Client::connect(format!("localhost:{}", port).as_str(), None).await?;
+        let _ = Client::connect(format!("localhost:{}", port).as_str(), None)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
-        Client::connect(format!("localhost:{}", port).as_str(), None).await?;
+        Client::connect(format!("localhost:{}", port).as_str(), None)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
         send_stop.send(())?;
 
@@ -194,11 +212,18 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     async fn case_03_successful_first_authentication() -> anyhow::Result<()> {
         let db_path = get_random_db_path();
 
-        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false).await?;
+        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
-        let mut player = Client::connect(format!("localhost:{}", port).as_str(), None).await?;
+        let mut player = Client::connect(format!("localhost:{}", port).as_str(), None)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
-        player.login("test").await?;
+        player
+            .login("test")
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
         send_stop.send(())?;
 
@@ -213,15 +238,21 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     async fn case_04_successful_first_authentication_tls() -> anyhow::Result<()> {
         let db_path = get_random_db_path();
 
-        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, true).await?;
+        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, true)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
         let mut player = Client::connect(
             format!("localhost:{}", port).as_str(),
             Some(ClientPki::Slice { cert: CA_CERT }),
         )
-        .await?;
+        .timeout(Duration::from_secs(TIMEOUT_DURATION))
+        .await??;
 
-        player.login("test").await?;
+        player
+            .login("test")
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
         send_stop.send(())?;
 
@@ -239,7 +270,9 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
         {
             File::create(db_path.clone())?;
 
-            let mut instance = Instance::from_path(db_path.as_str()).await?;
+            let mut instance = Instance::from_path(db_path.as_str())
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??;
 
             instance.get_galaxy_mut().add_element(
                 Element::Player(Player::new(
@@ -250,14 +283,24 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
                 GalacticCoords::default(),
             );
 
-            instance.sync_to_db().await?;
+            instance
+                .sync_to_db()
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??;
         }
 
-        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false).await?;
+        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
-        let mut player = Client::connect(format!("localhost:{}", port).as_str(), None).await?;
+        let mut player = Client::connect(format!("localhost:{}", port).as_str(), None)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
-        player.login("test").await?;
+        player
+            .login("test")
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
         send_stop.send(())?;
 
@@ -272,9 +315,13 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     async fn case_06_double_authentication() -> anyhow::Result<()> {
         let db_path = get_random_db_path();
 
-        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false).await?;
+        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
-        let mut player = Client::connect(format!("localhost:{}", port).as_str(), None).await?;
+        let mut player = Client::connect(format!("localhost:{}", port).as_str(), None)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
         assert!(player.login("test").await.is_ok());
 
@@ -293,20 +340,38 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     async fn case_07_auth_reauth() -> anyhow::Result<()> {
         let db_path = get_random_db_path();
 
-        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false).await?;
+        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
 
         let uuid1;
         {
-            let mut player = Client::connect(format!("localhost:{}", port).as_str(), None).await?;
-            uuid1 = player.login("test").await?;
-            player.terminate().await?;
+            let mut player = Client::connect(format!("localhost:{}", port).as_str(), None)
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??;
+            uuid1 = player
+                .login("test")
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??;
+            player
+                .terminate()
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??;
         }
 
         let uuid2;
         {
-            let mut player = Client::connect(format!("localhost:{}", port).as_str(), None).await?;
-            uuid2 = player.login("test").await?;
-            player.terminate().await?;
+            let mut player = Client::connect(format!("localhost:{}", port).as_str(), None)
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??;
+            uuid2 = player
+                .login("test")
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??;
+            player
+                .terminate()
+                .timeout(Duration::from_secs(TIMEOUT_DURATION))
+                .await??;
         }
 
         assert_eq!(uuid1, uuid2);
@@ -323,7 +388,37 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     async fn case_08_wait_first_gameinfo() -> anyhow::Result<()> {
         let db_path = get_random_db_path();
 
-        let (_instance, _send_stop, _game_thread, _port) = bootstrap(db_path, false).await?;
+        let (_instance, _send_stop, game_thread, port) = bootstrap(db_path, false)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
+
+        let mut player = Client::connect(format!("localhost:{}", port).as_str(), None)
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
+        player
+            .login("test")
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
+
+        let game_info = player
+            .next_game_info()
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await
+            .map_err(|_| anyhow!("Waited first game info for too long"))?;
+
+        if let GameInfo::Player(_player_info) = game_info.unwrap() {
+        } else {
+            assert!(false)
+        }
+
+        player
+            .terminate()
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await??;
+
+        game_thread
+            .timeout(Duration::from_secs(TIMEOUT_DURATION))
+            .await???;
 
         Ok(())
     }

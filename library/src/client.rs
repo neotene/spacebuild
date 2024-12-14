@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use futures::{SinkExt, StreamExt};
+use nalgebra::Vector3;
 use tokio::net::TcpStream;
 
 use tokio_rustls::client::TlsStream;
@@ -11,6 +12,7 @@ use crate::error::Error;
 use crate::network::tcp::{connect, ClientStream};
 use crate::network::tls::ClientPki;
 
+use crate::protocol::{GameInfo, ShipState};
 use crate::{
     protocol::{AuthInfo, Login, PlayerAction},
     Result,
@@ -28,13 +30,13 @@ impl WebSocketStream {
                 stream
                     .send(login_json)
                     .await
-                    .map_err(|err| Error::WSCantSend(err))?;
+                    .map_err(|err| Error::WsCantSend(err))?;
             }
             Self::Tls(stream) => {
                 stream
                     .send(login_json)
                     .await
-                    .map_err(|err| Error::WSCantSend(err))?;
+                    .map_err(|err| Error::WsCantSend(err))?;
             }
         }
         Ok(())
@@ -130,6 +132,33 @@ impl Client {
                 return Ok(uuid);
             }
             _ => return Err(Error::UnexpectedResponse(format!("{:?}", response))),
+        }
+    }
+
+    pub async fn move_in_space(&mut self, direction: Vector3<f64>) -> Result<()> {
+        self.stream
+            .send(Message::Text(
+                serde_json::to_string(&PlayerAction::ShipState(ShipState {
+                    throttle_up: true,
+                    direction,
+                }))
+                .unwrap(),
+            ))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn next_game_info(&mut self) -> Result<GameInfo> {
+        let next = self.stream.next().await?;
+
+        match next {
+            Message::Text(text) => {
+                let game_info = serde_json::from_str(&text).unwrap();
+                Ok(game_info)
+            }
+            _ => {
+                unreachable!()
+            }
         }
     }
 }

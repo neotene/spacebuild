@@ -69,14 +69,20 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
     loop {
         tokio::select! {
             _ = tick_delay.tick() => {
+                trace!("Service tick for {}", uuid.to_string());
                 if uuid.is_max() {
                     continue;
                 }
+                trace!("0");
                 let maybe_player = instance.lock().await.get_galaxy().get_element(uuid).await;
 
+                trace!("1");
                 if let Some(player) = maybe_player {
+                    trace!("2");
                     if let Element::Player(player) = &mut player.lock().await.deref_mut().element {
+                        trace!("3");
                         for game_info in &player.game_infos {
+                            trace!("4");
                             let game_info_str = serde_json::to_string(&game_info).unwrap();
                             if websocket.send(Message::text(game_info_str)).await.is_err() {
                                 error!("Could not send to client");
@@ -142,10 +148,12 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                         }
                         let maybe_login_info_str = serde_json::to_string(&login_info);
                         assert!(maybe_login_info_str.is_ok());
-                        let _ = websocket
+                        let result = websocket
                             .send(Message::text(maybe_login_info_str.unwrap()))
                             .await;
-                        debug!("Message sent or error");
+                        if result.is_err() {
+                            debug!("Message send error: {}", result.err().unwrap());
+                        }
                     }
                     Message::Binary(_msg) => {}
                     Message::Ping(_msg) => {}
@@ -157,9 +165,7 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                         }
                         break;
                     }
-                    Message::Frame(_msg) => {
-                        unreachable!();
-                    }
+                    Message::Frame(_msg) => {}
                 }
             }
         }

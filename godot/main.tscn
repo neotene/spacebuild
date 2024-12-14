@@ -107,13 +107,12 @@ theme_override_constants/margin_bottom = 0
 
 [node name="GameMode" type="TabContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer" groups=["gamemode_tabs"]]
 layout_mode = 2
-current_tab = 1
+current_tab = 0
 clip_tabs = false
 use_hidden_tabs_for_min_size = true
 tab_focus_mode = 0
 
 [node name="Solo" type="VBoxContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode" groups=["solo_tab"]]
-visible = false
 layout_mode = 2
 metadata/_tab_index = 0
 
@@ -167,6 +166,7 @@ disabled = true
 text = "Create world"
 
 [node name="Online" type="VBoxContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode"]
+visible = false
 layout_mode = 2
 alignment = 1
 metadata/_tab_index = 1

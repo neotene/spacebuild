@@ -124,8 +124,7 @@ func _process(_delta: float) -> void:
 				network_state = NetworkState.AUTHENTICATING
 				login_hash["Login"]["nickname"] = ui.login_field.get_text()
 				socket.send_text(JSON.stringify(login_hash))
-
-		if network_state == NetworkState.AUTHENTICATING:
+		elif network_state == NetworkState.AUTHENTICATING:
 			while socket.get_available_packet_count():
 				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
 				print("Received: [%s]" % variant)
@@ -134,6 +133,10 @@ func _process(_delta: float) -> void:
 					socket.close()
 				else:
 					refresh(State.PLAYING, NetworkState.WAITING_GAMEINFO)
+		elif network_state == NetworkState.WAITING_GAMEINFO:
+			while socket.get_available_packet_count():
+				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
+				print("Received: [%s]" % variant)
 						
 
 func quit() -> void:
@@ -150,7 +153,6 @@ func quit() -> void:
 
 func play_solo(play_mode) -> void:
 	var _output = []
-	OS.set_environment("RUST_LOG", "INFO")
 	var world_text = ""
 	if play_mode == PlaySoloMode.CREATION:
 		world_text = ui.world_field.get_text()
@@ -160,8 +162,10 @@ func play_solo(play_mode) -> void:
 	assert(!world_text.is_empty())
 	var args = ["0", "--no-input", "--instance", ProjectSettings.globalize_path("user://%s.spdb" % world_text)]
 	if !OS.has_feature("release"):
+		OS.set_environment("RUST_LOG", "TRACE")	
 		server = OS.execute_with_pipe("../target/debug/spacebuild-server", args)
 	else:
+		OS.set_environment("RUST_LOG", "INFO")
 		server = OS.execute_with_pipe("./spacebuild-server", args)
 	if server.is_empty():
 		printerr("Failed to run server")

@@ -8,7 +8,7 @@ pub type Angle = f64; // radian
 pub type Distance = f64; // cm
 pub type Speed = f64;
 pub type Direction = Vector3<f64>;
-pub type SystemCoords = Vector3<f64>;
+pub type LocalCoords = Vector3<f64>;
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
 pub struct GalacticCoords {
@@ -33,12 +33,12 @@ impl GalacticCoords {
         cartesian::Cartesian::from_coord(global_sph)
     }
 
-    pub fn get_local_from_element(&self, element: &ElementContainer) -> SystemCoords {
+    pub fn get_local_from_element(&self, element: &ElementContainer) -> LocalCoords {
         let diff = self.get_global_car() - element.coords.get_global_car();
-        SystemCoords::new(diff.x, diff.y, diff.z)
+        LocalCoords::new(diff.x, diff.y, diff.z)
     }
 
-    pub fn translate_from_local_delta(&mut self, local_delta: &SystemCoords) {
+    pub fn translate_from_local_delta(&mut self, local_delta: &LocalCoords) {
         let mut global_car = self.get_global_car();
 
         global_car.x += local_delta.x;
