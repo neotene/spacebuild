@@ -122,8 +122,11 @@ func list_worlds():
 	worlds_tree.clear()
 	root = worlds_tree.create_item()
 	for file in files:
-		var item = worlds_tree.create_item(root) as TreeItem
-		item.set_text(0, file.trim_suffix(".sbdb"))
+		var orig = file
+		var trimmed = file.trim_suffix(".sbdb")
+		if trimmed != orig:
+			var item = worlds_tree.create_item(root) as TreeItem
+			item.set_text(0, trimmed)
 
 func _process(_delta: float) -> void:
 	pass

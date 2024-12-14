@@ -51,6 +51,7 @@ impl Player {
         for other in others {
             elements_infos.push(ElementInfo {
                 coords: other.coords.get_local_from_element(&current_system),
+                uuid: other.uuid,
             });
         }
         if !elements_infos.is_empty() {

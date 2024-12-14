@@ -306,3 +306,5 @@ visible = false
 
 [node name="OmniLight3D" type="OmniLight3D" parent="Player"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.40637, 3.97017)
+
+[node name="Container" type="Node3D" parent="." groups=["container"]]

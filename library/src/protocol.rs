@@ -1,6 +1,7 @@
-use crate::game::elements::system::System;
+use crate::game::{elements::system::System, repr::LocalCoords};
 use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Login {
@@ -28,12 +29,13 @@ pub enum PlayerAction {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PlayerInfo {
-    pub coords: Vector3<f64>,
+    pub coords: LocalCoords,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ElementInfo {
-    pub coords: Vector3<f64>,
+    pub coords: LocalCoords,
+    pub uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize)]

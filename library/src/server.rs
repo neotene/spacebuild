@@ -96,7 +96,8 @@ pub async fn run(
                 debug!("Update Tick");
 
                 if stop.try_recv().is_ok() {
-                    info!("Server loop stops now !");
+                    instance.lock().await.sync_to_db().await?;
+                    info!("Server loop stops now (on stop channel)!");
                     return Ok(())
                 }
                 let now = tokio::time::Instant::now();
@@ -113,7 +114,11 @@ pub async fn run(
             // ----------------------------------------------------
             // ON TERM EVENT---------------------------------------
             Some(Ok(_event)) = crossterm_wrapper_next(&mut maybe_input_stream) => {
-                on_term_event(_event, &mut prompt);
+                if on_term_event(_event, &mut prompt) {
+                    instance.lock().await.sync_to_db().await?;
+                    info!("Server loop stops now (on user input)!");
+                    return Ok(())
+                }
             },
             // ----------------------------------------------------
             // ON TCP ACCEPT---------------------------------------

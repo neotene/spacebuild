@@ -16,13 +16,14 @@ var server = null;
 var state = State.INIT
 var network_state = NetworkState.IDLE
 var server_process_state = ServerProcessState.NOT_RUNNING
-var server_logs_thread: Thread
+var server_logs_err_thread: Thread
+var server_logs_out_thread: Thread
 var mutex: Mutex = Mutex.new()
 var server_port = 0
 var server_uri: String = ""
 
 @onready var server_logs = get_tree().get_first_node_in_group("server_logs")
-
+@onready var container = get_tree().get_first_node_in_group("container")
 
 @onready var ui = get_tree().get_first_node_in_group("ui")
 var regex = RegEx.new()
@@ -34,23 +35,24 @@ func _notification(what):
 func _ready() -> void:
 	regex.compile("^.*Server loop starts, listenning on (\\d+)$")
 
-func _server_logs():
-	var pipe_err = server["stderr"] as FileAccess
+func _server_logs(key):
+	var pipe = server[key] as FileAccess
 
 	while server_process_state == ServerProcessState.RUNNING:		
-		var stderr_line = pipe_err.get_line()
-		if pipe_err.eof_reached() || stderr_line.is_empty():
+		var line = pipe.get_line()
+		if pipe.eof_reached() || line.is_empty():
 			return
-		var search_result = regex.search(stderr_line)
-		if search_result:
-			var port_str = search_result.get_string(1)
-			assert(!port_str.is_empty())
-			mutex.lock()
-			server_port = int(port_str)
-			mutex.unlock()
-		print("Server says: [%s]" % stderr_line)
+		if key == "stderr":
+			var search_result = regex.search(line)
+			if search_result:
+				var port_str = search_result.get_string(1)
+				assert(!port_str.is_empty())
+				mutex.lock()
+				server_port = int(port_str)
+				mutex.unlock()
+		print("Server says: [%s]" % line)
 		if !OS.has_feature("release"):
-			server_logs.call_deferred("append_text", stderr_line)
+			server_logs.call_deferred("append_text", line)
 			server_logs.call_deferred("newline")
 
 func refresh(to_state, to_network_state) -> void:
@@ -100,7 +102,8 @@ func _process(_delta: float) -> void:
 		if !OS.is_process_running(server["pid"]):
 			server_process_state = ServerProcessState.NOT_RUNNING
 			refresh(State.WELCOME, network_state)
-			server_logs_thread.wait_to_finish()
+			server_logs_err_thread.wait_to_finish()
+			server_logs_out_thread.wait_to_finish()
 
 	if network_state != NetworkState.IDLE:
 		socket.poll()
@@ -127,7 +130,7 @@ func _process(_delta: float) -> void:
 		elif network_state == NetworkState.AUTHENTICATING:
 			while socket.get_available_packet_count():
 				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
-				print("Received: [%s]" % variant)
+				print("Received: %s" % variant)
 				if variant["success"] == false:
 					ui.error_placeholder.set_text("Authentication failed: %s" % variant["message"])
 					socket.close()
@@ -136,17 +139,46 @@ func _process(_delta: float) -> void:
 		elif network_state == NetworkState.WAITING_GAMEINFO:
 			while socket.get_available_packet_count():
 				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
-				print("Received: [%s]" % variant)
+				#print("Received: %s" % variant)
+				var galactics = container.get_children()
+				if variant.has("ElementsInSystem"):
+					var elements = variant["ElementsInSystem"] as Array
+					for element in elements:
+						var found = false
+						for galactic in galactics:
+							if galactic.get_name() == element["uuid"]:
+								galactic.position.x = Vector3(element["coords"][0])
+								galactic.position.y = Vector3(element["coords"][1])
+								galactic.position.z = Vector3(element["coords"][2])
+								found = true
+								break
+						if !found:
+							var galactic = preload("res://galactic.tscn")
+							var node = galactic.instantiate();
+							node.set_name(element["uuid"])
+							container.add_child(node)
 						
 
 func quit() -> void:
 	print("Quit called")
 	if server_process_state == ServerProcessState.RUNNING:
-		print("Killing server")
-		OS.kill(server["pid"])
-		server_process_state = ServerProcessState.NOT_RUNNING
+		print("Stopping server gracefully...")
+		(server["stdio"] as FileAccess).store_string("stop")
+		(server["stdio"] as FileAccess).flush()
+		
+		for i in range(200):
+			OS.delay_msec(10)
+			if !OS.is_process_running(server["pid"]):
+				break
+			
+		if OS.is_process_running(server["pid"]):
+			print("Killing server!")
+			OS.kill(server["pid"])
+			server_process_state = ServerProcessState.NOT_RUNNING
+
 		print("Waiting threads")
-		server_logs_thread.wait_to_finish()
+		server_logs_err_thread.wait_to_finish()
+		server_logs_out_thread.wait_to_finish()
 
 	print("Quitting now")
 	get_tree().quit()
@@ -160,7 +192,7 @@ func play_solo(play_mode) -> void:
 		world_text = ui.worlds_tree.get_selected().get_text(0)
 		
 	assert(!world_text.is_empty())
-	var args = ["0", "--no-input", "--instance", ProjectSettings.globalize_path("user://%s.sbdb" % world_text)]
+	var args = ["0", "--instance", ProjectSettings.globalize_path("user://%s.sbdb" % world_text)]
 	if !OS.has_feature("release"):
 		OS.set_environment("RUST_LOG", "TRACE")	
 		server = OS.execute_with_pipe("../target/debug/spacebuild-server", args)
@@ -173,8 +205,10 @@ func play_solo(play_mode) -> void:
 		ui.play_button.set_disabled(false)
 		return
 	server_process_state = ServerProcessState.RUNNING
-	server_logs_thread = Thread.new()
-	server_logs_thread.start(_server_logs)
+	server_logs_err_thread = Thread.new()
+	server_logs_err_thread.start(_server_logs.bind("stderr"))
+	server_logs_out_thread = Thread.new()
+	server_logs_out_thread.start(_server_logs.bind("stdio"))
 	server_uri =  "ws://localhost"
 	refresh(State.WAITING_PORT, network_state)
 
