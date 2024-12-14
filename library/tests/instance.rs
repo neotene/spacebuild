@@ -118,7 +118,7 @@ mod space_build_tests_instance {
         }
         assert!(find);
 
-        let system = instance.get_galaxy().get_element(uuid_1).await.unwrap();
+        let system = instance.get_galaxy().get_galactic(uuid_1).await.unwrap();
 
         assert_eq!(
             GalacticCoords::new(1., 2., 3.),
@@ -140,13 +140,13 @@ mod space_build_tests_instance {
 
         let uuid_1 = instance
             .get_galaxy_mut()
-            .add_element(Element::System(sys_1), GalacticCoords::new(1., 2., 3.));
+            .add_galactic(Element::System(sys_1), GalacticCoords::new(1., 2., 3.));
 
         let sys_2 = element::System::default();
 
         let uuid_2 = instance
             .get_galaxy_mut()
-            .add_element(Element::System(sys_2), GalacticCoords::new(4., 5., 6.));
+            .add_galactic(Element::System(sys_2), GalacticCoords::new(4., 5., 6.));
 
         instance
             .sync_to_db()
@@ -168,7 +168,7 @@ mod space_build_tests_instance {
         }
         assert!(find);
 
-        let system = instance.get_galaxy().get_element(uuid_1).await.unwrap();
+        let system = instance.get_galaxy().get_galactic(uuid_1).await.unwrap();
 
         assert_eq!(
             GalacticCoords::new(1., 2., 3.),
@@ -184,7 +184,7 @@ mod space_build_tests_instance {
         }
         assert!(find);
 
-        let system = instance.get_galaxy().get_element(uuid_2).await.unwrap();
+        let system = instance.get_galaxy().get_galactic(uuid_2).await.unwrap();
 
         assert_eq!(
             GalacticCoords::new(4., 5., 6.),
@@ -206,15 +206,15 @@ mod space_build_tests_instance {
 
         let uuid = instance
             .get_galaxy_mut()
-            .add_element(Element::Player(player), GalacticCoords::new(1., 2., 3.));
+            .add_galactic(Element::Player(player), GalacticCoords::new(1., 2., 3.));
 
         assert_eq!(1, instance.get_galaxy().get_players().await.len());
         assert_eq!(
             true,
-            instance.get_galaxy().get_element(uuid).await.is_some()
+            instance.get_galaxy().get_galactic(uuid).await.is_some()
         );
 
-        let player_cmp = instance.get_galaxy().get_element(uuid).await.unwrap();
+        let player_cmp = instance.get_galaxy().get_galactic(uuid).await.unwrap();
 
         assert_eq!(player_cmp.lock().await.get_uuid(), uuid);
         assert_eq!(
@@ -273,7 +273,7 @@ mod space_build_tests_instance {
 
         assert_eq!(uuid.to_string(), uuid_str);
 
-        let player_cmp = instance.get_galaxy().get_element(uuid).await.unwrap();
+        let player_cmp = instance.get_galaxy().get_galactic(uuid).await.unwrap();
 
         assert_eq!(player_cmp.lock().await.get_uuid(), uuid);
         assert_eq!(

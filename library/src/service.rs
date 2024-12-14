@@ -74,7 +74,7 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                     continue;
                 }
                 trace!("0");
-                let maybe_player = instance.lock().await.get_galaxy().get_element(uuid).await;
+                let maybe_player = instance.lock().await.get_galaxy().get_galactic(uuid).await;
 
                 trace!("1");
                 if let Some(player) = maybe_player {
@@ -134,7 +134,7 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                                 }
                             } else {
                                 let instance = instance.lock().await;
-                                let maybe_element = instance.get_galaxy().get_element(uuid).await;
+                                let maybe_element = instance.get_galaxy().get_galactic(uuid).await;
                                 if let Some(maybe_player) = maybe_element {
                                     if let Element::Player(player) =
                                         &mut maybe_player.lock().await.deref_mut().element

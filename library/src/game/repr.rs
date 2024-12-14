@@ -2,7 +2,7 @@ use nalgebra::Vector3;
 use scilib::coordinate::{cartesian, spherical};
 use serde::{Deserialize, Serialize};
 
-use super::instance::ElementContainer;
+use super::instance::Galactic;
 
 pub type Angle = f64; // radian
 pub type Distance = f64; // cm
@@ -33,7 +33,7 @@ impl GalacticCoords {
         cartesian::Cartesian::from_coord(global_sph)
     }
 
-    pub fn get_local_from_element(&self, element: &ElementContainer) -> LocalCoords {
+    pub fn get_local_from_element(&self, element: &Galactic) -> LocalCoords {
         let diff = self.get_global_car() - element.coords.get_global_car();
         LocalCoords::new(diff.x, diff.y, diff.z)
     }

@@ -274,7 +274,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
                 .timeout(Duration::from_secs(TIMEOUT_DURATION))
                 .await??;
 
-            instance.get_galaxy_mut().add_element(
+            instance.get_galaxy_mut().add_galactic(
                 Element::Player(Player::new(
                     "test963".to_string(),
                     Uuid::new_v4(),
