@@ -1,0 +1,22 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://lg6c8gqjhsyg"
+path="res://.godot/imported/moon.obj-47fbbe0e65873a8dc8009838beca53aa.mesh"
+
+[deps]
+
+files=["res://.godot/imported/moon.obj-47fbbe0e65873a8dc8009838beca53aa.mesh"]
+
+source_file="res://data/Moon/moon.obj"
+dest_files=["res://.godot/imported/moon.obj-47fbbe0e65873a8dc8009838beca53aa.mesh", "res://.godot/imported/moon.obj-47fbbe0e65873a8dc8009838beca53aa.mesh"]
+
+[params]
+
+generate_tangents=true
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+optimize_mesh=true
+force_disable_mesh_compression=false
