@@ -13,7 +13,7 @@ mod space_build_tests_instance {
     use spacebuild::game::{
         element::{self, Element},
         instance::Instance,
-        repr::GalacticCoords,
+        repr::GlobalCoords,
     };
     use sqlx::SqlitePool;
     use uuid::Uuid;
@@ -41,9 +41,9 @@ mod space_build_tests_instance {
             .timeout(Duration::from_secs(TIMEOUT_DURATION))
             .await??;
 
-        let systems = instance.borrow_galaxy().get_systems().await;
+        let systems = instance.borrow_galaxy().borrow_systems();
         assert_eq!(0, systems.len());
-        let players = instance.borrow_galaxy().get_players().await;
+        let players = instance.borrow_galaxy().borrow_players();
         assert_eq!(0, players.len());
 
         let pool = SqlitePool::connect(format!("sqlite:{}", db_path).as_str())
@@ -106,7 +106,7 @@ mod space_build_tests_instance {
 
         let uuid_1 = Uuid::from_str(uuid_str).unwrap();
 
-        let systems = instance.borrow_galaxy().get_systems().await;
+        let systems = instance.borrow_galaxy().borrow_systems();
         assert_eq!(1, systems.len());
 
         let mut find = false;
@@ -118,13 +118,9 @@ mod space_build_tests_instance {
         }
         assert!(find);
 
-        let system = instance
-            .borrow_galaxy()
-            .borrow_galactic(uuid_1)
-            .await
-            .unwrap();
+        let system = instance.borrow_galaxy().borrow_galactic(uuid_1).unwrap();
 
-        assert_eq!(GalacticCoords::new(1., 2., 3.), system.get_coords());
+        assert_eq!(GlobalCoords::new(1., 2., 3.), system.get_coords());
 
         Ok(())
     }
@@ -141,13 +137,13 @@ mod space_build_tests_instance {
 
         let uuid_1 = instance
             .borrow_galaxy_mut()
-            .add_galactic(Element::System(sys_1), GalacticCoords::new(1., 2., 3.));
+            .add_galactic(Element::System(sys_1), GlobalCoords::new(1., 2., 3.));
 
         let sys_2 = element::System::default();
 
         let uuid_2 = instance
             .borrow_galaxy_mut()
-            .add_galactic(Element::System(sys_2), GalacticCoords::new(4., 5., 6.));
+            .add_galactic(Element::System(sys_2), GlobalCoords::new(4., 5., 6.));
 
         instance
             .sync_to_db()
@@ -158,7 +154,7 @@ mod space_build_tests_instance {
             .timeout(Duration::from_secs(TIMEOUT_DURATION))
             .await??;
 
-        let systems = instance.borrow_galaxy().get_systems().await;
+        let systems = instance.borrow_galaxy().borrow_systems();
         assert_eq!(2, systems.len());
         let mut find = false;
         for system in &systems {
@@ -169,13 +165,9 @@ mod space_build_tests_instance {
         }
         assert!(find);
 
-        let system = instance
-            .borrow_galaxy()
-            .borrow_galactic(uuid_1)
-            .await
-            .unwrap();
+        let system = instance.borrow_galaxy().borrow_galactic(uuid_1).unwrap();
 
-        assert_eq!(GalacticCoords::new(1., 2., 3.), system.get_coords());
+        assert_eq!(GlobalCoords::new(1., 2., 3.), system.get_coords());
 
         let mut find = false;
         for system in &systems {
@@ -186,13 +178,9 @@ mod space_build_tests_instance {
         }
         assert!(find);
 
-        let system = instance
-            .borrow_galaxy()
-            .borrow_galactic(uuid_2)
-            .await
-            .unwrap();
+        let system = instance.borrow_galaxy().borrow_galactic(uuid_2).unwrap();
 
-        assert_eq!(GalacticCoords::new(4., 5., 6.), system.get_coords());
+        assert_eq!(GlobalCoords::new(4., 5., 6.), system.get_coords());
 
         Ok(())
     }
@@ -209,27 +197,19 @@ mod space_build_tests_instance {
 
         let uuid = instance
             .borrow_galaxy_mut()
-            .add_galactic(Element::Player(player), GalacticCoords::new(1., 2., 3.));
+            .add_galactic(Element::Player(player), GlobalCoords::new(1., 2., 3.));
 
-        assert_eq!(1, instance.borrow_galaxy().get_players().await.len());
+        assert_eq!(1, instance.borrow_galaxy().borrow_players().len());
         assert_eq!(
             true,
-            instance
-                .borrow_galaxy()
-                .borrow_galactic(uuid)
-                .await
-                .is_some()
+            instance.borrow_galaxy().borrow_galactic(uuid).is_some()
         );
 
-        let player_cmp = instance
-            .borrow_galaxy()
-            .borrow_galactic(uuid)
-            .await
-            .unwrap();
+        let player_cmp = instance.borrow_galaxy().borrow_galactic(uuid).unwrap();
 
         assert_eq!(player_cmp.get_uuid(), uuid);
         assert_eq!(player_cmp.get_direction(), Vector3::new(0., 0., 0.));
-        assert_eq!(player_cmp.get_coords(), GalacticCoords::new(1., 2., 3.));
+        assert_eq!(player_cmp.get_coords(), GlobalCoords::new(1., 2., 3.));
 
         assert_eq!(0., player_cmp.get_speed());
 
@@ -278,15 +258,11 @@ mod space_build_tests_instance {
 
         assert_eq!(uuid.to_string(), uuid_str);
 
-        let player_cmp = instance
-            .borrow_galaxy()
-            .borrow_galactic(uuid)
-            .await
-            .unwrap();
+        let player_cmp = instance.borrow_galaxy().borrow_galactic(uuid).unwrap();
 
         assert_eq!(player_cmp.get_uuid(), uuid);
         assert_eq!(player_cmp.get_direction(), Vector3::new(5., 6., 7.));
-        assert_eq!(player_cmp.get_coords(), GalacticCoords::new(1., 2., 3.));
+        assert_eq!(player_cmp.get_coords(), GlobalCoords::new(1., 2., 3.));
         assert_eq!(4., player_cmp.get_speed());
 
         if let Element::Player(player_cmp) = player_cmp.get_element() {

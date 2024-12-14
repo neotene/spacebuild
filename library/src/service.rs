@@ -73,17 +73,12 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                 if uuid.is_max() {
                     continue;
                 }
-                trace!("0");
                 let mut guard = instance.lock().await;
-                let maybe_player = guard.borrow_galaxy_mut().borrow_galactic_mut(uuid).await;
+                let maybe_player = guard.borrow_galaxy_mut().borrow_galactic_mut(uuid);
 
-                trace!("1");
                 if let Some(player) = maybe_player {
-                    trace!("2");
                     if let Element::Player(player) = &mut player.element {
-                        trace!("3");
                         for game_info in &player.game_infos {
-                            trace!("4");
                             let game_info_str = serde_json::to_string(&game_info).unwrap();
                             if websocket.send(Message::text(game_info_str)).await.is_err() {
                                 error!("Could not send to client");
@@ -135,7 +130,7 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                                 }
                             } else {
                                 let mut instance = instance.lock().await;
-                                let maybe_element = instance.borrow_galaxy_mut().borrow_galactic_mut(uuid).await;
+                                let maybe_element = instance.borrow_galaxy_mut().borrow_galactic_mut(uuid);
                                 if let Some(maybe_player) = maybe_element {
                                     if let Element::Player(player) =
                                         &mut maybe_player.element

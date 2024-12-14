@@ -1,4 +1,10 @@
-use crate::protocol::{GameInfo, PlayerAction};
+use crate::{
+    game::{
+        galaxy::Galactic,
+        repr::{GlobalCoords, LocalCoords, Speed},
+    },
+    protocol::{ElementInfo, GameInfo, PlayerAction, PlayerInfo},
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,6 +19,46 @@ pub struct Player {
 }
 
 impl Player {
+    pub fn update(
+        &mut self,
+        delta: f64,
+        mut coords: GlobalCoords,
+        direction: LocalCoords,
+        speed: Speed,
+        current_system: Galactic,
+        others: Vec<&Galactic>,
+    ) -> GlobalCoords {
+        for action in &self.actions {
+            match action {
+                crate::protocol::PlayerAction::ShipState(ship_state) => {
+                    if ship_state.throttle_up {
+                        coords.translate_from_local_delta(&(&direction * speed * delta));
+                    }
+                }
+                _ => {
+                    unreachable!()
+                }
+            }
+        }
+
+        self.actions.clear();
+
+        self.game_infos.push(GameInfo::Player(PlayerInfo {
+            coords: coords.get_local_from_element(&current_system),
+        }));
+
+        let mut elements_infos = Vec::<ElementInfo>::default();
+        for other in others {
+            elements_infos.push(ElementInfo {
+                coords: other.coords.get_local_from_element(&current_system),
+            });
+        }
+        if !elements_infos.is_empty() {
+            self.game_infos
+                .push(GameInfo::ElementsInSystem(elements_infos));
+        }
+        coords
+    }
     pub fn new(nickname: String, own_system_uuid: Uuid, current_system_uuid: Uuid) -> Self {
         Self {
             nickname,

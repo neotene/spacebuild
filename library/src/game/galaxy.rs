@@ -1,14 +1,53 @@
 use super::element::{Body, Element};
+use super::elements::body::BodyType;
 use super::elements::player::Player;
 use super::elements::system::System;
-use super::repr::{Angle, Distance, GalacticCoords, LocalCoords, Speed};
+use super::repr::{Angle, Distance, GlobalCoords, LocalCoords, Speed};
 use crate::error::Error;
-use crate::protocol::{ElementInfo, GameInfo, PlayerInfo};
 use crate::Result;
+use rand::Rng;
 use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 use std::str::FromStr;
 use uuid::Uuid;
+
+pub fn gen_system() -> (Galactic, Vec<Galactic>) {
+    let mut rng = rand::thread_rng();
+    let angle_1 = rng.gen_range(0..15000) as f64 / 10000.;
+    let angle_2 = rng.gen_range(0..15000) as f64 / 10000.;
+    let distance = rng.gen_range(0.0..10000000000.);
+
+    let uuid = Uuid::new_v4();
+    let coords = GlobalCoords::new(angle_1, angle_2, distance);
+
+    let system = Galactic::new(
+        Element::System(System::default()),
+        uuid,
+        coords.clone(),
+        LocalCoords::default(),
+        0.,
+    );
+
+    let mut bodies_in_system = Vec::<Galactic>::default();
+
+    for _ in 1..100 {
+        let x = rng.gen_range(0..1000) as f64;
+        let y = rng.gen_range(0..1000) as f64;
+        let z = rng.gen_range(0..10) as f64;
+
+        let mut cln = coords.clone();
+        cln.translate_from_local_delta(&LocalCoords::new(x, y, z));
+        bodies_in_system.push(Galactic::new(
+            Element::Body(Body::new(BodyType::Asteroid, uuid)),
+            Uuid::new_v4(),
+            cln,
+            LocalCoords::default(),
+            0.,
+        ));
+    }
+
+    (system, bodies_in_system)
+}
 
 type Container = Vec<Galactic>;
 
@@ -18,7 +57,53 @@ pub struct Galaxy {
 }
 
 impl Galaxy {
-    pub async fn get_systems(&self) -> Vec<&Galactic> {
+    pub async fn update(&mut self, delta: f64) -> bool {
+        let cln = self.clone();
+
+        for galactic in &mut self.galactics {
+            match &mut galactic.element {
+                Element::Player(player) => {
+                    let others = cln.borrow_bodies_of_system(player.current_system_uuid);
+                    galactic.coords = player.update(
+                        delta,
+                        galactic.coords.clone(),
+                        galactic.direction,
+                        galactic.speed,
+                        cln.borrow_galactic(player.current_system_uuid)
+                            .unwrap()
+                            .clone(),
+                        others,
+                    );
+                }
+                Element::Body(_body) => {
+                    galactic.coords.translate_from_local_delta(
+                        &(&galactic.direction * galactic.speed * delta),
+                    );
+                }
+                Element::System(_system) => {}
+            }
+        }
+        false
+    }
+
+    pub fn borrow_bodies_of_system(&self, system_uuid: Uuid) -> Vec<&Galactic> {
+        let mut collection = Vec::default();
+        let bodies = self.borrow_bodies();
+
+        for galactic in bodies {
+            if let Element::Body(body) = &galactic.element {
+                if body.owner_system_id == system_uuid {
+                    collection.push(galactic);
+                }
+            } else {
+                unreachable!()
+            }
+        }
+
+        collection
+    }
+
+    pub fn borrow_systems(&self) -> Vec<&Galactic> {
         let mut collection = Vec::default();
 
         for element in &self.galactics {
@@ -30,7 +115,19 @@ impl Galaxy {
         collection
     }
 
-    pub async fn get_players(&self) -> Vec<&Galactic> {
+    pub fn borrow_bodies(&self) -> Vec<&Galactic> {
+        let mut collection = Vec::default();
+
+        for element in &self.galactics {
+            if let Element::Body(_) = element.element {
+                collection.push(element);
+            }
+        }
+
+        collection
+    }
+
+    pub fn borrow_players(&self) -> Vec<&Galactic> {
         let mut collection = Vec::default();
 
         for element in &self.galactics {
@@ -42,10 +139,22 @@ impl Galaxy {
         collection
     }
 
-    pub fn add_galactic(&mut self, element: Element, coords: GalacticCoords) -> Uuid {
+    pub fn borrow_players_mut(&mut self) -> Vec<&mut Galactic> {
+        let mut collection = Vec::default();
+
+        for element in &mut self.galactics {
+            if let Element::Player(_) = element.element {
+                collection.push(element);
+            }
+        }
+
+        collection
+    }
+
+    pub fn add_galactic(&mut self, galactic: Element, coords: GlobalCoords) -> Uuid {
         let uuid = Uuid::new_v4();
         self.galactics.push(Galactic::new(
-            element,
+            galactic,
             uuid,
             coords,
             LocalCoords::default(),
@@ -54,19 +163,19 @@ impl Galaxy {
         uuid
     }
 
-    pub async fn borrow_galactic(&self, uuid: Uuid) -> Option<&Galactic> {
-        for element in &self.galactics {
-            if element.uuid == uuid {
-                return Some(element);
+    pub fn borrow_galactic(&self, uuid: Uuid) -> Option<&Galactic> {
+        for galactic in &self.galactics {
+            if galactic.uuid == uuid {
+                return Some(galactic);
             }
         }
         None
     }
 
-    pub async fn borrow_galactic_mut(&mut self, uuid: Uuid) -> Option<&mut Galactic> {
-        for element in &mut self.galactics {
-            if element.uuid == uuid {
-                return Some(element);
+    pub fn borrow_galactic_mut(&mut self, uuid: Uuid) -> Option<&mut Galactic> {
+        for galactic in &mut self.galactics {
+            if galactic.uuid == uuid {
+                return Some(galactic);
             }
         }
         None
@@ -77,7 +186,7 @@ impl Galaxy {
 pub struct Galactic {
     pub(crate) element: Element,
     pub(crate) uuid: Uuid,
-    pub(crate) coords: GalacticCoords,
+    pub(crate) coords: GlobalCoords,
     pub(crate) direction: LocalCoords,
     pub(crate) speed: Speed,
 }
@@ -86,7 +195,7 @@ impl Galactic {
     pub fn new(
         element: Element,
         uuid: Uuid,
-        coords: GalacticCoords,
+        coords: GlobalCoords,
         direction: LocalCoords,
         speed: Speed,
     ) -> Self {
@@ -99,76 +208,11 @@ impl Galactic {
         }
     }
 
-    pub async fn update(&mut self, delta: f64, others: &Galaxy) {
-        let direction = self.direction.normalize();
-        let speed = self.speed;
-        let mut new_coords = self.coords.clone();
-        let element = &mut self.element;
-        match element {
-            Element::Body(_body) => {
-                new_coords.translate_from_local_delta(&(&direction * speed * delta));
-            }
-            Element::Player(player) => {
-                for action in &player.actions {
-                    match action {
-                        crate::protocol::PlayerAction::ShipState(ship_state) => {
-                            if ship_state.throttle_up {
-                                new_coords
-                                    .translate_from_local_delta(&(&direction * speed * delta));
-                            }
-                        }
-                        _ => {
-                            unreachable!()
-                        }
-                    }
-                }
-
-                player.actions.clear();
-
-                player.game_infos.push(GameInfo::Player(PlayerInfo {
-                    coords: new_coords.get_local_from_element(
-                        &others
-                            .borrow_galactic(player.current_system_uuid)
-                            .await
-                            .unwrap(),
-                    ),
-                }));
-
-                let player_current_system =
-                    others.borrow_galactic(player.current_system_uuid).await;
-                assert!(player_current_system.is_some());
-                let uuid = player_current_system.unwrap().uuid;
-                let mut elements_infos = Vec::<ElementInfo>::default();
-                for element in &others.galactics {
-                    if let Element::Body(body) = &element.element {
-                        if body.owner_system_id == uuid {
-                            let coords = new_coords.get_local_from_element(
-                                &others
-                                    .borrow_galactic(player.current_system_uuid)
-                                    .await
-                                    .unwrap(),
-                            );
-                            elements_infos.push(ElementInfo { coords });
-                        }
-                    }
-                }
-                if !elements_infos.is_empty() {
-                    player
-                        .game_infos
-                        .push(GameInfo::ElementsInSystem(elements_infos));
-                }
-            }
-            Element::System(_system) => {}
-        };
-
-        self.coords = new_coords;
-    }
-
     pub fn get_uuid(&self) -> Uuid {
         self.uuid
     }
 
-    pub fn get_coords(&self) -> GalacticCoords {
+    pub fn get_coords(&self) -> GlobalCoords {
         self.coords.clone()
     }
 
@@ -270,7 +314,7 @@ impl Galactic {
                             .map_err(|err| Error::BadUuidError(err, own_system_uuid.to_string()))?,
                     )),
                     uuid,
-                    GalacticCoords::new(phi, theta, distance),
+                    GlobalCoords::new(phi, theta, distance),
                     LocalCoords::new(
                         direction_x.map_err(|err| Error::DbLoadSystemsError(err))?,
                         direction_y,
@@ -288,7 +332,7 @@ impl Galactic {
                         Uuid::from_str(system_owner_uuid).unwrap(),
                     )),
                     uuid,
-                    GalacticCoords::new(phi, theta, distance),
+                    GlobalCoords::new(phi, theta, distance),
                     LocalCoords::new(
                         direction_x.map_err(|err| Error::DbLoadSystemsError(err))?,
                         direction_y,
@@ -303,7 +347,7 @@ impl Galactic {
             Galactic::new(
                 Element::System(System::default()),
                 uuid,
-                GalacticCoords::new(phi, theta, distance),
+                GlobalCoords::new(phi, theta, distance),
                 LocalCoords::default(),
                 speed,
             )

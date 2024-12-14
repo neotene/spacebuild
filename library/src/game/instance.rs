@@ -1,13 +1,11 @@
-use super::element::{Body, Element};
-use super::elements::body::BodyType;
+use super::element::Element;
 use super::elements::player::Player;
-use super::elements::system::System;
-use super::galactic::{Galactic, Galaxy};
-use super::repr::{GalacticCoords, LocalCoords};
+use super::galaxy::{gen_system, Galactic, Galaxy};
+use super::repr::{GlobalCoords, LocalCoords};
 use crate::error::Error;
 use crate::Result;
 use futures::TryStreamExt;
-use rand::Rng;
+use log::trace;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::fs::File;
 use std::path::Path;
@@ -134,6 +132,7 @@ impl Instance {
     }
 
     pub async fn load_player_by_nickname(&mut self, nickname: String) -> Result<Uuid> {
+        trace!("Trying to load player {} from DB...", nickname);
         let rows = sqlx::query("SELECT * FROM Player WHERE nickname=?")
             .bind(&nickname)
             .fetch_all(&self.pool)
@@ -179,17 +178,17 @@ impl Instance {
         self.galaxy.galactics.remove(i);
     }
 
-    pub async fn authenticate(instance: &mut Instance, nickname: &String) -> Result<Uuid> {
-        let maybe_uuid = instance.load_player_by_nickname(nickname.clone()).await;
+    pub async fn authenticate(&mut self, nickname: &String) -> Result<Uuid> {
+        let maybe_uuid = self.load_player_by_nickname(nickname.clone()).await;
 
         match maybe_uuid {
             Err(Error::DbLoadPlayerByNicknameNotFound) => {
                 let (player_system, bodies_in_system) = gen_system();
                 let player_sys_uuid = player_system.uuid;
-                instance.galaxy.galactics.push(player_system);
+                self.galaxy.galactics.push(player_system);
 
                 for body in bodies_in_system {
-                    instance.galaxy.galactics.push(body);
+                    self.galaxy.galactics.push(body);
                 }
 
                 let player = Galactic::new(
@@ -199,13 +198,12 @@ impl Instance {
                         player_sys_uuid,
                     )),
                     Uuid::new_v4(),
-                    GalacticCoords::default(),
+                    GlobalCoords::default(),
                     LocalCoords::default(),
                     0.,
                 );
                 let uuid = player.uuid;
-                instance.galaxy.galactics.push(player);
-                instance.sync_to_db().await?;
+                self.galaxy.galactics.push(player);
 
                 Ok(uuid)
             }
@@ -213,57 +211,4 @@ impl Instance {
             Err(err) => Err(err),
         }
     }
-
-    pub async fn update(&mut self, delta: f64) -> bool {
-        let mut galaxy = self.galaxy.clone();
-        for galactic in &mut self.galaxy.galactics {
-            let galactic_nth = galaxy
-                .galactics
-                .iter()
-                .position(|g| g.uuid == galactic.uuid)
-                .unwrap();
-
-            galaxy.galactics.remove(galactic_nth);
-            galactic.update(delta, &galaxy).await;
-        }
-        false
-    }
-}
-
-pub fn gen_system() -> (Galactic, Vec<Galactic>) {
-    let mut rng = rand::thread_rng();
-    let angle_1 = rng.gen_range(0..15000) as f64 / 10000.;
-    let angle_2 = rng.gen_range(0..15000) as f64 / 10000.;
-    let distance = rng.gen_range(0.0..10000000000.);
-
-    let uuid = Uuid::new_v4();
-    let coords = GalacticCoords::new(angle_1, angle_2, distance);
-
-    let system = Galactic::new(
-        Element::System(System::default()),
-        uuid,
-        coords.clone(),
-        LocalCoords::default(),
-        0.,
-    );
-
-    let mut bodies_in_system = Vec::<Galactic>::default();
-
-    for _ in 1..100 {
-        let x = rng.gen_range(0..1000) as f64;
-        let y = rng.gen_range(0..1000) as f64;
-        let z = rng.gen_range(0..10) as f64;
-
-        let mut cln = coords.clone();
-        cln.translate_from_local_delta(&LocalCoords::new(x, y, z));
-        bodies_in_system.push(Galactic::new(
-            Element::Body(Body::new(BodyType::Asteroid, uuid)),
-            Uuid::new_v4(),
-            cln,
-            LocalCoords::default(),
-            0.,
-        ));
-    }
-
-    (system, bodies_in_system)
 }

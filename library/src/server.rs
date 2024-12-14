@@ -80,7 +80,8 @@ pub async fn run(
         None
     };
     let mut prompt: String = String::new();
-    let mut tick_delay = tokio::time::interval(std::time::Duration::from_millis(250));
+    let mut update_tick_delay = tokio::time::interval(std::time::Duration::from_millis(250));
+    let mut save_tick_delay = tokio::time::interval(std::time::Duration::from_secs(10));
 
     info!(
         "Server loop starts, listenning on {}",
@@ -91,8 +92,8 @@ pub async fn run(
         tokio::select! {
             // ----------------------------------------------------
             // ON TICK DELAY---------------------------------------
-            _ = tick_delay.tick() => {
-                debug!("General Tick");
+            _ = update_tick_delay.tick() => {
+                debug!("Update Tick");
 
                 if stop.try_recv().is_ok() {
                     info!("Server loop stops now !");
@@ -101,7 +102,11 @@ pub async fn run(
                 let now = tokio::time::Instant::now();
                 let delta = now - ref_instant;
                 ref_instant = now;
-                instance.lock().await.update(delta.as_secs_f64()).await;
+                instance.lock().await.galaxy.update(delta.as_secs_f64()).await;
+            },
+            _ = save_tick_delay.tick() => {
+                debug!("Save Tick");
+                instance.lock().await.sync_to_db().await?;
             },
             // ----------------------------------------------------
             // ON TERM EVENT---------------------------------------

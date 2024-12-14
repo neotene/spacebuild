@@ -2,7 +2,7 @@ use nalgebra::Vector3;
 use scilib::coordinate::{cartesian, spherical};
 use serde::{Deserialize, Serialize};
 
-use super::galactic::Galactic;
+use super::galaxy::Galactic;
 
 pub type Angle = f64; // radian
 pub type Distance = f64; // cm
@@ -11,15 +11,15 @@ pub type Direction = Vector3<f64>;
 pub type LocalCoords = Vector3<f64>;
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
-pub struct GalacticCoords {
+pub struct GlobalCoords {
     pub theta: Angle,
     pub phi: Angle,
     pub distance: Distance,
 }
 
-impl GalacticCoords {
+impl GlobalCoords {
     pub fn new(phi: Angle, theta: Angle, distance: Distance) -> Self {
-        GalacticCoords {
+        GlobalCoords {
             theta,
             phi,
             distance,
@@ -47,7 +47,7 @@ impl GalacticCoords {
 
         let new_global_sph = spherical::Spherical::from_coord(global_car);
 
-        *self = GalacticCoords {
+        *self = GlobalCoords {
             distance: new_global_sph.r,
             phi: new_global_sph.phi,
             theta: new_global_sph.theta,

@@ -15,7 +15,7 @@ mod spacebuild_tests_game {
         game::{
             element::{Element, Player},
             instance::Instance,
-            repr::GalacticCoords,
+            repr::GlobalCoords,
         },
         network::tls::{ClientPki, ServerPki},
         protocol::GameInfo,
@@ -280,7 +280,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
                     Uuid::new_v4(),
                     Uuid::new_v4(),
                 )),
-                GalacticCoords::default(),
+                GlobalCoords::default(),
             );
 
             instance
