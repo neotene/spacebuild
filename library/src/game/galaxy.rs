@@ -31,11 +31,12 @@ pub fn gen_system() -> (Galactic, Vec<Galactic>) {
 
     let mut bodies_in_system = Vec::<Galactic>::default();
 
-    let mut cln = coords.clone();
-    for _ in 1..2 {
+    for _ in 1..100 {
         let x = rng.gen_range(0.0..1000.);
         let y = rng.gen_range(0.0..1000.);
         let z = rng.gen_range(0.0..10.);
+
+        let mut cln = coords.clone();
 
         cln.translate_from_local_delta(&LocalCoords::new(x, y, z));
         bodies_in_system.push(Galactic::new(

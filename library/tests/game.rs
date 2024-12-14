@@ -388,7 +388,7 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
     async fn case_08_wait_first_gameinfo() -> anyhow::Result<()> {
         let db_path = get_random_db_path();
 
-        let (_instance, _send_stop, game_thread, port) = bootstrap(db_path, false)
+        let (_instance, send_stop, game_thread, port) = bootstrap(db_path, false)
             .timeout(Duration::from_secs(TIMEOUT_DURATION))
             .await??;
 
@@ -414,11 +414,15 @@ lBjhUjWT859gkyO6pYSTfndSpnWAdtQK9zsTYociBQ==
         player
             .terminate()
             .timeout(Duration::from_secs(TIMEOUT_DURATION))
-            .await??;
+            .await
+            .map_err(|_| anyhow!("Waited for client to terminate for too long"))??;
+
+        send_stop.send(()).unwrap();
 
         game_thread
             .timeout(Duration::from_secs(TIMEOUT_DURATION))
-            .await???;
+            .await
+            .map_err(|_| anyhow!("Waited for server to terminate for too long"))???;
 
         Ok(())
     }

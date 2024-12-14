@@ -201,7 +201,7 @@ impl Instance {
                 self.galaxy.galactics.push(player_system);
 
                 for body in bodies_in_system {
-                    self.galaxy.galactics.push(body);
+                    self.galaxy.galactics.push(body.clone());
                 }
 
                 let player = Galactic::new(

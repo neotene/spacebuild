@@ -69,7 +69,7 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
     loop {
         tokio::select! {
             _ = tick_delay.tick() => {
-                trace!("Service tick for {}", uuid.to_string());
+                debug!("Service tick for {}", uuid.to_string());
                 if uuid.is_max() {
                     continue;
                 }
