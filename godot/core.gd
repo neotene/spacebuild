@@ -166,9 +166,15 @@ func handle_network():
 
 		if network_state == NetworkState.CONNECTING:
 			if socket_state == WebSocketPeer.STATE_OPEN:
-				new_network_state = NetworkState.AUTHENTICATING
-				login_hash["Login"]["nickname"] = ui.login_field.get_text()
-				socket.send_text(JSON.stringify(login_hash))
+				if ui.welcome_state == ui.WelcomeState.ONLINE:
+					login_hash["Login"]["nickname"] = ui.login_field.get_text()
+				else:
+					login_hash["Login"]["nickname"] = "Player"
+				if socket.send_text(JSON.stringify(login_hash)) != OK:
+					print("Send error")
+				else:
+					new_network_state = NetworkState.AUTHENTICATING
+
 		elif network_state == NetworkState.AUTHENTICATING:
 			while socket.get_available_packet_count():
 				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
@@ -187,6 +193,7 @@ func handle_network():
 		elif network_state == NetworkState.WAITING_GAMEINFO:
 			while socket.get_available_packet_count():
 				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
+				print("Received: %s" % variant)
 				var galactics = container.get_children()
 				if variant.has("ElementsInSystem"):
 					var elements = variant["ElementsInSystem"] as Array
@@ -202,6 +209,7 @@ func handle_network():
 							var node = galactic.instantiate();
 							node.set_name(element["uuid"])
 							container.add_child(node)
+
 	refresh(new_state, new_network_state)
 			
 func quit_now(wait_threads):
@@ -212,7 +220,9 @@ func quit_now(wait_threads):
 	get_tree().quit()
 
 func leave():
-	socket.close(0)
+	# todo: change state
+	print("Leaving...")
+	socket.close(1000)
 	container.remove_from_group("galactic")
 
 func stop_server():
@@ -239,7 +249,7 @@ func play_solo(play_mode) -> void:
 		world_text = ui.worlds_tree.get_selected().get_text(0)
 		
 	assert(!world_text.is_empty())
-	var args = ["0", "--instance", ProjectSettings.globalize_path("user://%s.sbdb" % world_text), "--trace-level", "INFO"]
+	var args = ["0", "--instance", ProjectSettings.globalize_path("user://%s.sbdb" % world_text), "--trace-level", "DEBUG"]
 	if !OS.has_feature("release"):
 		OS.set_environment("RUST_LOG", "TRACE")
 		server = OS.execute_with_pipe("../target/debug/spacebuild-server", args)
@@ -253,6 +263,7 @@ func play_solo(play_mode) -> void:
 		return
 
 	server_process_state = ServerProcessState.RUNNING
+	server_port = 0
 	if server_logs_err_thread:
 		server_logs_err_thread.wait_to_finish()
 	server_logs_err_thread = Thread.new()
@@ -262,7 +273,6 @@ func play_solo(play_mode) -> void:
 	server_logs_out_thread = Thread.new()
 	server_logs_out_thread.start(_server_logs.bind("stdio"))
 	server_uri =  "ws://localhost"
-	server_port = 0
 	refresh(State.WAITING_PORT, network_state)
 
 func play_online() -> void:

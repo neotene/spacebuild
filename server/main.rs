@@ -1,4 +1,4 @@
-use std::{env, time::Duration};
+use std::{env, io};
 
 use clap::Parser;
 
@@ -7,7 +7,6 @@ use spacebuild::{
     server::{self, InstanceConfig, ServerConfig},
 };
 use tokio::task::JoinHandle;
-use tokio::time::sleep;
 
 use anyhow::{bail, Result};
 
@@ -25,12 +24,6 @@ struct Args {
 
     #[arg(short, long, default_value = "galaxy.sbdb")]
     instance: String,
-
-    #[arg(short, long, default_value_t = false)]
-    no_input: bool,
-
-    #[arg(short, long)]
-    stop_after: Option<u64>,
 
     #[arg(long, default_value = "spacebuild::(.*)", value_name = "REGEX")]
     trace_filter: String,
@@ -58,8 +51,20 @@ async fn main() -> anyhow::Result<()> {
     };
 
     common::trace::init(Some(args.trace_filter));
+    let (stop_on_input_send, stop_on_input_recv) = crossbeam::channel::bounded(1);
+    tokio::spawn(async move {
+        loop {
+            for line in io::stdin().lines() {
+                if let Ok(line) = line {
+                    if line == "stop" {
+                        stop_on_input_send.send(()).unwrap();
+                        return;
+                    }
+                }
+            }
+        }
+    });
 
-    let (stop_send, stop_recv) = crossbeam::channel::bounded(1);
     let server_hdl: JoinHandle<Result<()>> = tokio::spawn(async move {
         if let spacebuild::Result::Err(err) = server::run(
             InstanceConfig::UserSqliteDb {
@@ -69,8 +74,7 @@ async fn main() -> anyhow::Result<()> {
                 tcp: server::TcpConfig::Port(args.port),
                 pki,
             },
-            // !args.no_input,
-            stop_recv,
+            stop_on_input_recv,
         )
         .await
         {
@@ -80,22 +84,7 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let waiter_hdl = tokio::spawn(async move {
-        if let Some(stop_after) = args.stop_after {
-            sleep(Duration::from_secs(stop_after)).await;
-            let _ = stop_send.send(());
-        }
-        anyhow::Ok(())
-    });
-
-    tokio::select! {
-        result = server_hdl => {
-            result??;
-        },
-        result = waiter_hdl, if args.stop_after.is_some() => {
-            result??;
-        }
-    }
+    server_hdl.await??;
 
     Ok(())
 }

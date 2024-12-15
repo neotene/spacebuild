@@ -19,6 +19,7 @@ hyper = {version = "1.5.1", features = ["server", "client", "http1"]}
 hyper-rustls = {version = "0.27.3", features = ["native-tokio"]}
 hyper-tungstenite = "0.15.0"
 hyper-util = {version = "0.1.10", features = ["full"]}
+is_printable = "0.0.11"
 log = { version = "0.4.22"}
 nalgebra = {version = "0.33.2", features = ["serde-serialize"]}
 rand = "0.8.5"

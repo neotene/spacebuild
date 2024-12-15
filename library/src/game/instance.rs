@@ -5,6 +5,7 @@ use super::repr::{GlobalCoords, LocalCoords};
 use crate::error::Error;
 use crate::Result;
 use futures::TryStreamExt;
+use is_printable::IsPrintable;
 use log::trace;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::fs::File;
@@ -139,6 +140,10 @@ impl Instance {
     }
 
     pub async fn load_player_by_nickname(&mut self, nickname: String) -> Result<Uuid> {
+        if nickname.is_empty() || !nickname.is_printable() {
+            return Err(Error::InvalidNickname);
+        }
+
         for galactic in &self.galaxy.galactics {
             if let Element::Player(player) = &galactic.element {
                 if player.nickname == nickname {

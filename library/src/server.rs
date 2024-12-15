@@ -11,7 +11,6 @@ use hyper::Request;
 use hyper_util::rt::TokioIo;
 use log::debug;
 use log::info;
-use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -70,19 +69,6 @@ pub async fn run(
     let mut update_tick_delay = tokio::time::interval(std::time::Duration::from_millis(250));
     let mut save_tick_delay = tokio::time::interval(std::time::Duration::from_secs(10));
 
-    let (stop_on_input_send, stop_on_input_recv) = crossbeam::channel::bounded(1);
-    tokio::spawn(async move {
-        loop {
-            for line in io::stdin().lines() {
-                if let Ok(line) = line {
-                    if line == "stop" {
-                        stop_on_input_send.send(()).unwrap();
-                        return;
-                    }
-                }
-            }
-        }
-    });
     info!(
         "Server loop starts, listenning on {}",
         listener.local_addr().unwrap().port()
@@ -98,12 +84,6 @@ pub async fn run(
                 if stop.try_recv().is_ok() {
                     instance.lock().await.sync_to_db().await?;
                     info!("Server loop stops now (on stop channel)!");
-                    return Ok(())
-                }
-
-                if stop_on_input_recv.try_recv().is_ok() {
-                    instance.lock().await.sync_to_db().await?;
-                    info!("Server loop stops now (on stdin input)!");
                     return Ok(())
                 }
 

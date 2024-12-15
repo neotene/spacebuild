@@ -6,6 +6,8 @@ use tokio_tungstenite::tungstenite;
 pub enum Error {
     #[error("Error")]
     Error,
+    #[error("Invalid nickname")]
+    InvalidNickname,
     #[error("Can't load a certificate: {0}")]
     CertLoadError(rustls_pki_types::pem::Error),
     #[error("Could not TLS handshake: {0}")]

@@ -1249,6 +1249,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "is_printable"
+version = "0.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eeded2b5e41037cb61b6892cc427e008312ea622b27c2180485f57ca711c30e0"
+dependencies = [
+ "colored",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2112,6 +2121,7 @@ dependencies = [
  "hyper-rustls",
  "hyper-tungstenite",
  "hyper-util",
+ "is_printable",
  "log",
  "nalgebra",
  "rand",

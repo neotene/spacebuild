@@ -92,7 +92,7 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
             },
             Some(message) = websocket.next() => {
                 if message.is_err() {
-                    trace!("Websocket read error: {}", message.err().unwrap());
+                    info!("Websocket read error: {}", message.err().unwrap());
                     break;
                 }
                 match message.unwrap() {
@@ -148,19 +148,22 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                             .send(Message::text(maybe_login_info_str.unwrap()))
                             .await;
                         if result.is_err() {
-                            debug!("Message send error: {}", result.err().unwrap());
+                            info!("Message send error: {}", result.err().unwrap());
                         }
                     }
                     Message::Binary(_msg) => {}
                     Message::Ping(_msg) => {}
                     Message::Pong(_msg) => {}
-                    Message::Close(_msg) => {
-                        info!("WS close request received");
+                    Message::Close(msg) => {
+                        info!("WS close request received: {:?}", msg);
                         if !uuid.is_max() {
                             if instance.lock().await.leave(uuid).await.is_err() {
                                 unreachable!()
                             }
                         }
+                        // if websocket.close(None).await.is_err() {
+                        //     log::trace!("Could not close socket on close request");
+                        // };
                         break;
                     }
                     Message::Frame(_msg) => {}
