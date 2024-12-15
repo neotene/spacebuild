@@ -117,18 +117,50 @@ tab_focus_mode = 0
 layout_mode = 2
 metadata/_tab_index = 0
 
-[node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo"]
+[node name="Header" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo"]
+layout_mode = 2
+
+[node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header"]
 layout_mode = 2
 theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 5
+theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 0
 theme_override_constants/margin_bottom = 5
 
-[node name="Label" type="Label" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins"]
+[node name="Label" type="Label" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Margins"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 17
 theme_override_styles/normal = SubResource("StyleBoxFlat_1u3xw")
 text = "Worlds"
+
+[node name="Buttons" type="HBoxContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header"]
+layout_mode = 2
+alignment = 1
+
+[node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Buttons"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 5
+
+[node name="Button" type="Button" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Buttons/Margins" groups=["delete_button"]]
+layout_mode = 2
+focus_mode = 0
+disabled = true
+text = "Delete world"
+
+[node name="Margins2" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Buttons"]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 5
+
+[node name="Button" type="Button" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Buttons/Margins2" groups=["open_folder_button"]]
+layout_mode = 2
+focus_mode = 0
+text = "Open folder"
 
 [node name="Worlds" type="Tree" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo" groups=["worlds_tree"]]
 custom_minimum_size = Vector2(0, 145.48)
@@ -151,6 +183,7 @@ dragger_visibility = 1
 
 [node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation"]
 layout_mode = 2
+focus_mode = 1
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 5
 theme_override_constants/margin_right = 0
@@ -159,10 +192,12 @@ theme_override_constants/margin_bottom = 5
 [node name="LineEdit" type="LineEdit" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation/Margins" groups=["world_field"]]
 custom_minimum_size = Vector2(230, 0)
 layout_mode = 2
+focus_mode = 1
 placeholder_text = "World name"
 
 [node name="Create" type="Button" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation" groups=["create_button"]]
 layout_mode = 2
+focus_mode = 1
 disabled = true
 text = "Create world"
 

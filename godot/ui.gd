@@ -22,6 +22,8 @@ var selected_world = null
 @onready var host_field = get_tree().get_first_node_in_group("host_field")
 @onready var port_field = get_tree().get_first_node_in_group("port_field")
 @onready var screen_size = get_viewport().get_visible_rect().size
+@onready var delete_button = get_tree().get_first_node_in_group("delete_button")
+@onready var open_folder_button = get_tree().get_first_node_in_group("open_folder_button")
 
 func _ready() -> void:
 	root = worlds_tree.create_item()
@@ -38,6 +40,8 @@ func _ready() -> void:
 	gamemode_tabs.tab_changed.connect(_gamemode_changed)
 	play_button.pressed.connect(_play_button_pressed)
 	encrypted_switch.toggled.connect(_on_encrypted_switch_toggled)
+	delete_button.pressed.connect(_delete_button_pressed)
+	open_folder_button.pressed.connect(_open_folder_button_pressed)
 
 	_on_encrypted_switch_toggled(false)
 	_on_size_changed()
@@ -45,6 +49,16 @@ func _ready() -> void:
 	
 	if OS.has_feature("web"):
 		gamemode_tabs.remove_child(solo_tab)
+
+func _open_folder_button_pressed():
+	OS.shell_show_in_file_manager(ProjectSettings.globalize_path("user://"), true)
+
+func _delete_button_pressed():
+	assert(selected_world)
+	var file_path = ProjectSettings.globalize_path("user://%s.sbdb" % selected_world.get_text(0))
+	if OS.move_to_trash(file_path) != OK:
+		printerr("Failed to delete user save: %s" % file_path)
+	list_worlds()
 
 func _on_encrypted_switch_toggled(toggled):
 	if toggled:
@@ -63,6 +77,7 @@ func refresh(dest_ui_welcome_state) -> void:
 					play_button.set_disabled(true)
 				else:
 					play_button.set_disabled(selected_world == null)
+					delete_button.set_disabled(selected_world == null)
 					create_button.set_disabled(world_field.get_text().is_empty())
 			elif dest_ui_welcome_state == WelcomeState.ONLINE:
 				play_button.set_disabled(login_field.get_text().is_empty())
