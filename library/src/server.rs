@@ -18,7 +18,10 @@ use hyper::service::service_fn;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
 use log::debug;
+use log::error;
 use log::info;
+use log::trace;
+use sqlx::pool::maybe;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -113,11 +116,18 @@ pub async fn run(
             },
             // ----------------------------------------------------
             // ON TERM EVENT---------------------------------------
-            Some(Ok(_event)) = crossterm_wrapper_next(&mut maybe_input_stream) => {
-                if on_term_event(_event, &mut prompt) {
-                    instance.lock().await.sync_to_db().await?;
-                    info!("Server loop stops now (on user input)!");
-                    return Ok(())
+            Some(maybe_event) = maybe_input_stream.next() => {
+                if let Ok(event) = maybe_event {
+                    trace!("INPUT");
+                    println!("---------------------");
+                    if on_term_event(event, &mut prompt) {
+                        instance.lock().await.sync_to_db().await?;
+                        info!("Server loop stops now (on user input)!");
+                        return Ok(())
+                    }
+                } else {
+                    println!("==================");
+                    error!("Input error: {}", maybe_event.err().unwrap());
                 }
             },
             // ----------------------------------------------------

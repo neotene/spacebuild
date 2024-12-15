@@ -32,6 +32,7 @@ offset_top = -300.0
 offset_right = -252.0
 offset_bottom = 300.0
 theme_override_font_sizes/normal_font_size = 10
+scroll_following = true
 
 [node name="Title" type="Label" parent="UI" groups=["title"]]
 layout_mode = 1

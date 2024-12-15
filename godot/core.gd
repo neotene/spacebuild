@@ -35,14 +35,15 @@ func _notification(what):
 
 func _ready() -> void:
 	regex.compile("^.*Server loop starts, listenning on (\\d+)$")
+	get_tree().set_auto_accept_quit(false)
 
 func _server_logs(key):
 	var pipe = server[key] as FileAccess
 
-	while server_process_state == ServerProcessState.RUNNING:		
+	while server_process_state == ServerProcessState.RUNNING:	
 		var line = pipe.get_line()
 		if pipe.eof_reached() || line.is_empty():
-			return
+			break
 		if key == "stderr":
 			var search_result = regex.search(line)
 			if search_result:
@@ -51,10 +52,12 @@ func _server_logs(key):
 				mutex.lock()
 				server_port = int(port_str)
 				mutex.unlock()
-		print("Server says: [%s]" % line)
+		print("Server says on %s: [%s]" % [key, line])
 		if !OS.has_feature("release"):
 			server_logs.call_deferred("append_text", line)
 			server_logs.call_deferred("newline")
+	
+	print("Server log (%s) thread quitting now!" % key)
 
 func refresh(to_state, to_network_state) -> void:
 	#ui.error_placeholder.set_text("Connecting...")
@@ -80,7 +83,7 @@ func _process(delta: float) -> void:
 		if !OS.is_process_running(server["pid"]):
 			quit_now();
 				
-		if stop_timer < 3:
+		if stop_timer < 5:
 			return ;
 			
 		print("Killing server!")
@@ -198,7 +201,7 @@ func play_solo(play_mode) -> void:
 		world_text = ui.worlds_tree.get_selected().get_text(0)
 		
 	assert(!world_text.is_empty())
-	var args = ["0", "--instance", ProjectSettings.globalize_path("user://%s.sbdb" % world_text)]
+	var args = ["0", "--instance", ProjectSettings.globalize_path("user://%s.sbdb" % world_text), "--trace-level", "TRACE"]
 	if !OS.has_feature("release"):
 		OS.set_environment("RUST_LOG", "TRACE")	
 		server = OS.execute_with_pipe("../target/debug/spacebuild-server", args)
@@ -210,6 +213,7 @@ func play_solo(play_mode) -> void:
 		ui.error_placeholder.set_text("Local server not found or could not be executed")
 		ui.play_button.set_disabled(false)
 		return
+
 	server_process_state = ServerProcessState.RUNNING
 	server_logs_err_thread = Thread.new()
 	server_logs_err_thread.start(_server_logs.bind("stderr"))

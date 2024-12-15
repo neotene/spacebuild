@@ -51,10 +51,12 @@ pub async fn crossterm_wrapper_next(
 ) -> std::option::Option<std::result::Result<crossterm::event::Event, std::io::Error>> {
     match maybe_input_stream {
         Some(input_stream) => {
+            println!("ojfsofdfssd");
             trace!("Some input");
             input_stream.next().await
         }
         None => {
+            println!("PLOOOOP");
             trace!("No input");
             None
         }
