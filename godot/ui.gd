@@ -7,7 +7,7 @@ var root = null
 var selected_world = null
 
 @onready var core = get_tree().get_first_node_in_group("core")
-@onready var worlds_tree = get_tree().get_first_node_in_group("worlds_tree")
+@onready var worlds_tree = get_tree().get_first_node_in_group("worlds_tree") as Tree
 @onready var modale = get_tree().get_first_node_in_group("modale")
 @onready var solo_tab = get_tree().get_first_node_in_group("solo_tab")
 @onready var login_field = get_tree().get_first_node_in_group("login_field")
@@ -24,6 +24,9 @@ var selected_world = null
 @onready var screen_size = get_viewport().get_visible_rect().size
 @onready var delete_button = get_tree().get_first_node_in_group("delete_button")
 @onready var open_folder_button = get_tree().get_first_node_in_group("open_folder_button")
+@onready var playing_menu = get_tree().get_first_node_in_group("playing_menu")
+@onready var leave_button = get_tree().get_first_node_in_group("leave_game_button")
+@onready var back_to_game_button = get_tree().get_first_node_in_group("back_to_game_button")
 
 func _ready() -> void:
 	root = worlds_tree.create_item()
@@ -42,13 +45,26 @@ func _ready() -> void:
 	encrypted_switch.toggled.connect(_on_encrypted_switch_toggled)
 	delete_button.pressed.connect(_delete_button_pressed)
 	open_folder_button.pressed.connect(_open_folder_button_pressed)
+	leave_button.pressed.connect(_leave_button_pressed)
+	back_to_game_button.pressed.connect(_back_to_game_button_pressed)
 
 	_on_encrypted_switch_toggled(false)
 	_on_size_changed()
-	refresh(welcome_state)
+	refresh(core.state, welcome_state)
 	
 	if OS.has_feature("web"):
 		gamemode_tabs.remove_child(solo_tab)
+
+func _leave_button_pressed():
+	core.stop_server()
+	
+func _back_to_game_button_pressed():
+	playing_menu.set_visible(false);
+
+func _input(event):
+	if event.is_action_pressed("ui_cancel"):
+		if core.state == core.State.PLAYING:
+			playing_menu.set_visible(!playing_menu.is_visible());
 
 func _open_folder_button_pressed():
 	OS.shell_show_in_file_manager(ProjectSettings.globalize_path("user://"), true)
@@ -66,15 +82,16 @@ func _on_encrypted_switch_toggled(toggled):
 	else:
 		encrypted_switch.set_text("off")
 
-func refresh(dest_ui_welcome_state) -> void:
-	if core.state == core.State.WELCOME:
+func refresh(dest_core_state, dest_ui_welcome_state) -> void:
+	if dest_core_state == core.State.WELCOME:
 		if core.state != core.State.WELCOME:
-			pass
+			playing_menu.set_visible(false)
 		else:
 			if dest_ui_welcome_state == WelcomeState.SOLO:
 				if welcome_state != WelcomeState.SOLO:
 					list_worlds()
 					play_button.set_disabled(true)
+					delete_button.set_disabled(true)
 				else:
 					play_button.set_disabled(selected_world == null)
 					delete_button.set_disabled(selected_world == null)
@@ -109,20 +126,21 @@ func _gamemode_changed(tab_id):
 		dest_welcome_state = WelcomeState.SOLO
 	else:
 		assert(false)
-	refresh(dest_welcome_state)
+	refresh(core.state, dest_welcome_state)
 
 func _worlds_item_selected():
 	selected_world = worlds_tree.get_selected()
-	refresh(welcome_state)
+	refresh(core.state, welcome_state)
 
 func _worlds_nothing_selected():
-	refresh(welcome_state)
+	selected_world = null
+	refresh(core.state, welcome_state)
 
 func _on_login_changed(_text):
-	refresh(welcome_state)
+	refresh(core.state, welcome_state)
 
 func _on_world_changed(_text):
-	refresh(welcome_state)
+	refresh(core.state, welcome_state)
 
 func _on_size_changed():
 	var new_screen_size = get_viewport().get_visible_rect().size

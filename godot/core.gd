@@ -1,6 +1,6 @@
 extends Node
 
-enum State {INIT, WELCOME, WAITING_PORT, LOADING, PLAYING, STOPPING}
+enum State {INIT, WELCOME, WAITING_PORT, LOADING, PLAYING, STOPPING_GAME, QUITTING}
 enum NetworkState {IDLE, CONNECTING, AUTHENTICATING, WAITING_GAMEINFO}
 enum ServerProcessState {NOT_RUNNING, RUNNING, READY}
 enum PlaySoloMode {CREATION, JOIN}
@@ -69,19 +69,25 @@ func refresh(to_state, to_network_state) -> void:
 		get_tree().get_first_node_in_group("loading").set_text("Wait please...")
 	elif to_state == State.LOADING:
 		get_tree().get_first_node_in_group("loading").set_text("Connecting...")
+
+	ui.refresh(to_state, ui.welcome_state)
 	state = to_state
 	network_state = to_network_state
-
+	
 func _process(delta: float) -> void:
 	if state == State.INIT:
 		state = State.WELCOME
 		return
 		
-	if state == State.STOPPING:
+	if state == State.STOPPING_GAME || state == State.QUITTING:
 		stop_timer += delta;
 		
 		if !OS.is_process_running(server["pid"]):
-			quit_now(true);
+			if state == State.QUITTING:
+				quit_now(true);
+			else:
+				refresh(State.WELCOME, network_state)
+				return 
 				
 		if stop_timer < 5:
 			return ;
@@ -90,7 +96,8 @@ func _process(delta: float) -> void:
 		OS.kill(server["pid"])
 		server_process_state = ServerProcessState.NOT_RUNNING
 
-		quit_now(true)
+		if state == State.QUITTING:
+			quit_now(true)
 
 	if state == State.WAITING_PORT:
 		mutex.lock()
@@ -154,7 +161,9 @@ func _process(delta: float) -> void:
 					ui.error_placeholder.set_text("Authentication failed: %s" % variant["message"])
 					socket.close()
 				else:
+					print("Login success, uuid is %s" % variant["message"])
 					refresh(State.PLAYING, NetworkState.WAITING_GAMEINFO)
+
 		elif network_state == NetworkState.WAITING_GAMEINFO:
 			while socket.get_available_packet_count():
 				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
@@ -181,14 +190,18 @@ func quit_now(wait_threads):
 		server_logs_err_thread.wait_to_finish()
 		server_logs_out_thread.wait_to_finish()
 	get_tree().quit()
-	
+
+func stop_server():
+	print("Stopping server gracefully...")
+	(server["stdio"] as FileAccess).store_line("stop")
+	(server["stdio"] as FileAccess).flush()
+	state = State.STOPPING_GAME
+
 func quit() -> void:
 	print("Quit called")
 	if server_process_state == ServerProcessState.RUNNING:
-		print("Stopping server gracefully...")
-		(server["stdio"] as FileAccess).store_line("stop")
-		(server["stdio"] as FileAccess).flush()
-		state = State.STOPPING
+		stop_server()
+		state = State.QUITTING
 	else:
 		print("Server not running, quitting now!")
 		quit_now(false)
@@ -204,7 +217,7 @@ func play_solo(play_mode) -> void:
 	assert(!world_text.is_empty())
 	var args = ["0", "--instance", ProjectSettings.globalize_path("user://%s.sbdb" % world_text), "--trace-level", "INFO"]
 	if !OS.has_feature("release"):
-		OS.set_environment("RUST_LOG", "TRACE")	
+		OS.set_environment("RUST_LOG", "TRACE")
 		server = OS.execute_with_pipe("../target/debug/spacebuild-server", args)
 	else:
 		OS.set_environment("RUST_LOG", "INFO")

@@ -119,6 +119,7 @@ metadata/_tab_index = 0
 
 [node name="Header" type="HSplitContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo"]
 layout_mode = 2
+dragger_visibility = 1
 
 [node name="Margins" type="MarginContainer" parent="UI/Modale/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header"]
 layout_mode = 2
@@ -167,6 +168,7 @@ custom_minimum_size = Vector2(0, 145.48)
 layout_mode = 2
 focus_mode = 0
 columns = 2
+allow_reselect = true
 select_mode = 1
 scroll_horizontal_enabled = false
 
@@ -325,6 +327,42 @@ size_flags_vertical = 4
 focus_mode = 0
 disabled = true
 text = "Play"
+
+[node name="Playing Menu" type="AspectRatioContainer" parent="UI" groups=["playing_menu"]]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -225.0
+offset_top = -20.0
+offset_right = 225.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="UI/Playing Menu"]
+custom_minimum_size = Vector2(450, 350)
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="UI/Playing Menu/PanelContainer"]
+layout_mode = 2
+
+[node name="HSplitContainer" type="HSplitContainer" parent="UI/Playing Menu/PanelContainer/CenterContainer"]
+layout_mode = 2
+dragger_visibility = 1
+
+[node name="Leave" type="Button" parent="UI/Playing Menu/PanelContainer/CenterContainer/HSplitContainer" groups=["leave_game_button"]]
+layout_mode = 2
+focus_mode = 0
+text = "Leave"
+
+[node name="Back to game" type="Button" parent="UI/Playing Menu/PanelContainer/CenterContainer/HSplitContainer" groups=["back_to_game_button"]]
+layout_mode = 2
+focus_mode = 0
+text = "Back to game"
 
 [node name="Core" type="Node" parent="." groups=["core"]]
 script = ExtResource("4_25w80")
