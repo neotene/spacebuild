@@ -60,6 +60,7 @@ impl Player {
         }
         coords
     }
+
     pub fn new(nickname: String, own_system_uuid: Uuid, current_system_uuid: Uuid) -> Self {
         Self {
             nickname,

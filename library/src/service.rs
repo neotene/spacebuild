@@ -12,7 +12,6 @@ use hyper_tungstenite::HyperWebsocket;
 use log::debug;
 use log::error;
 use log::info;
-use log::trace;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -70,24 +69,23 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
         tokio::select! {
             _ = tick_delay.tick() => {
                 debug!("Service tick for {}", uuid.to_string());
-                if uuid.is_max() {
-                    continue;
-                }
-                let mut guard = instance.lock().await;
-                let maybe_player = guard.borrow_galaxy_mut().borrow_galactic_mut(uuid);
+                if !uuid.is_max() {
+                    let mut guard = instance.lock().await;
+                    let maybe_player = guard.borrow_galaxy_mut().borrow_galactic_mut(uuid);
 
-                if let Some(player) = maybe_player {
-                    if let Element::Player(player) = &mut player.element {
-                        for game_info in &player.game_infos {
-                            let game_info_str = serde_json::to_string(&game_info).unwrap();
-                            if websocket.send(Message::text(game_info_str)).await.is_err() {
-                                error!("Could not send to client");
+                    if let Some(player) = maybe_player {
+                        if let Element::Player(player) = &mut player.element {
+                            for game_info in &player.game_infos {
+                                let game_info_str = serde_json::to_string(&game_info).unwrap();
+                                if websocket.send(Message::text(game_info_str)).await.is_err() {
+                                    error!("Could not send to client");
+                                }
                             }
+                            player.game_infos.clear();
                         }
-                        player.game_infos.clear();
+                    } else {
+                        unreachable!()
                     }
-                } else {
-                    unreachable!()
                 }
             },
             Some(message) = websocket.next() => {
