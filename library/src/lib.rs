@@ -3,7 +3,6 @@
 pub mod client;
 pub mod error;
 pub mod game;
-pub mod input;
 pub mod network;
 pub mod protocol;
 pub mod server;

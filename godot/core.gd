@@ -81,7 +81,7 @@ func _process(delta: float) -> void:
 		stop_timer += delta;
 		
 		if !OS.is_process_running(server["pid"]):
-			quit_now();
+			quit_now(true);
 				
 		if stop_timer < 5:
 			return ;
@@ -90,7 +90,7 @@ func _process(delta: float) -> void:
 		OS.kill(server["pid"])
 		server_process_state = ServerProcessState.NOT_RUNNING
 
-		quit_now()
+		quit_now(true)
 
 	if state == State.WAITING_PORT:
 		mutex.lock()
@@ -175,10 +175,11 @@ func _process(delta: float) -> void:
 							node.set_name(element["uuid"])
 							container.add_child(node)
 						
-func quit_now():
-	print("Waiting threads")
-	server_logs_err_thread.wait_to_finish()
-	server_logs_out_thread.wait_to_finish()
+func quit_now(wait_threads):
+	if wait_threads:
+		print("Waiting threads")
+		server_logs_err_thread.wait_to_finish()
+		server_logs_out_thread.wait_to_finish()
 	get_tree().quit()
 	
 func quit() -> void:
@@ -189,8 +190,8 @@ func quit() -> void:
 		(server["stdio"] as FileAccess).flush()
 		state = State.STOPPING
 	else:
-		print("Server now running, quitting now!")
-		quit_now()
+		print("Server not running, quitting now!")
+		quit_now(false)
 
 func play_solo(play_mode) -> void:
 	var _output = []

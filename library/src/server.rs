@@ -1,27 +1,16 @@
 use crate::error::Error;
 use crate::game::instance::Instance;
-use crate::input::crossterm_wrapper_next;
-
-use crate::input::on_term_event;
-
 use crate::network;
-
 use crate::network::tls::ClientPki;
-
 use crate::network::tls::ServerPki;
 use crate::service;
 use crate::Result;
-use crossterm::event::EventStream;
-
 use hyper::server::conn::http1::{self};
 use hyper::service::service_fn;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
 use log::debug;
-use log::error;
 use log::info;
-use log::trace;
-use sqlx::pool::maybe;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -52,7 +41,6 @@ pub struct ClientConfig<'a> {
 pub async fn run(
     instance_config: InstanceConfig,
     server_config: ServerConfig<'_>,
-    user_input: bool,
     stop: crossbeam::channel::Receiver<()>,
 ) -> Result<()> {
     let instance = match instance_config {
@@ -77,12 +65,7 @@ pub async fn run(
     };
 
     let mut ref_instant = tokio::time::Instant::now();
-    let mut maybe_input_stream = if user_input {
-        Some(EventStream::new())
-    } else {
-        None
-    };
-    let mut prompt: String = String::new();
+    // let mut prompt: String = String::new();
     let mut update_tick_delay = tokio::time::interval(std::time::Duration::from_millis(250));
     let mut save_tick_delay = tokio::time::interval(std::time::Duration::from_secs(10));
 
@@ -113,22 +96,6 @@ pub async fn run(
             _ = save_tick_delay.tick() => {
                 debug!("Save Tick");
                 instance.lock().await.sync_to_db().await?;
-            },
-            // ----------------------------------------------------
-            // ON TERM EVENT---------------------------------------
-            Some(maybe_event) = maybe_input_stream.next() => {
-                if let Ok(event) = maybe_event {
-                    trace!("INPUT");
-                    println!("---------------------");
-                    if on_term_event(event, &mut prompt) {
-                        instance.lock().await.sync_to_db().await?;
-                        info!("Server loop stops now (on user input)!");
-                        return Ok(())
-                    }
-                } else {
-                    println!("==================");
-                    error!("Input error: {}", maybe_event.err().unwrap());
-                }
             },
             // ----------------------------------------------------
             // ON TCP ACCEPT---------------------------------------

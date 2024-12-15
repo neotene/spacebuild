@@ -69,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
                 tcp: server::TcpConfig::Port(args.port),
                 pki,
             },
-            !args.no_input,
+            // !args.no_input,
             stop_recv,
         )
         .await
