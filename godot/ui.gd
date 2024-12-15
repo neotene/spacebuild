@@ -56,14 +56,14 @@ func _ready() -> void:
 		gamemode_tabs.remove_child(solo_tab)
 
 func _leave_button_pressed():
-	core.stop_server()
+	core.leave()
 	
 func _back_to_game_button_pressed():
 	playing_menu.set_visible(false);
 
 func _input(event):
 	if event.is_action_pressed("ui_cancel"):
-		if core.state == core.State.PLAYING:
+		if core.state == core.State.PLAYING_SOLO || core.state == core.State.PLAYING_ONLINE:
 			playing_menu.set_visible(!playing_menu.is_visible());
 
 func _open_folder_button_pressed():
