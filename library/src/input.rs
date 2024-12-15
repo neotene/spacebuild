@@ -12,6 +12,7 @@ pub fn on_term_event(event: crossterm::event::Event, prompt: &mut String) -> boo
     match event {
         crossterm::event::Event::Key(key) => {
             if stdin().is_terminal() && key.kind != KeyEventKind::Press {
+                log::error!("exit");
                 return false;
             }
             match key.code {
@@ -49,7 +50,10 @@ pub async fn crossterm_wrapper_next(
     maybe_input_stream: &mut Option<EventStream>,
 ) -> std::option::Option<std::result::Result<crossterm::event::Event, std::io::Error>> {
     match maybe_input_stream {
-        Some(input_stream) => input_stream.next().await,
+        Some(input_stream) => {
+            trace!("Some input");
+            input_stream.next().await
+        }
         None => {
             trace!("No input");
             None

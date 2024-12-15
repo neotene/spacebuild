@@ -1,6 +1,6 @@
 extends Node
 
-enum State {INIT, WELCOME, WAITING_PORT, LOADING, PLAYING}
+enum State {INIT, WELCOME, WAITING_PORT, LOADING, PLAYING, STOPPING}
 enum NetworkState {IDLE, CONNECTING, AUTHENTICATING, WAITING_GAMEINFO}
 enum ServerProcessState {NOT_RUNNING, RUNNING, READY}
 enum PlaySoloMode {CREATION, JOIN}
@@ -21,6 +21,7 @@ var server_logs_out_thread: Thread
 var mutex: Mutex = Mutex.new()
 var server_port = 0
 var server_uri: String = ""
+var stop_timer = 0
 
 @onready var server_logs = get_tree().get_first_node_in_group("server_logs")
 @onready var container = get_tree().get_first_node_in_group("container")
@@ -68,10 +69,25 @@ func refresh(to_state, to_network_state) -> void:
 	state = to_state
 	network_state = to_network_state
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if state == State.INIT:
 		state = State.WELCOME
 		return
+		
+	if state == State.STOPPING:
+		stop_timer += delta;
+		
+		if !OS.is_process_running(server["pid"]):
+			quit_now();
+				
+		if stop_timer < 3:
+			return ;
+			
+		print("Killing server!")
+		OS.kill(server["pid"])
+		server_process_state = ServerProcessState.NOT_RUNNING
+
+		quit_now()
 
 	if state == State.WAITING_PORT:
 		mutex.lock()
@@ -147,9 +163,7 @@ func _process(_delta: float) -> void:
 						var found = false
 						for galactic in galactics:
 							if galactic.get_name() == element["uuid"]:
-								galactic.position.x = Vector3(element["coords"][0])
-								galactic.position.y = Vector3(element["coords"][1])
-								galactic.position.z = Vector3(element["coords"][2])
+								galactic.position = Vector3(element["coords"][0], element["coords"][1], element["coords"][2])
 								found = true
 								break
 						if !found:
@@ -158,30 +172,22 @@ func _process(_delta: float) -> void:
 							node.set_name(element["uuid"])
 							container.add_child(node)
 						
-
+func quit_now():
+	print("Waiting threads")
+	server_logs_err_thread.wait_to_finish()
+	server_logs_out_thread.wait_to_finish()
+	get_tree().quit()
+	
 func quit() -> void:
 	print("Quit called")
 	if server_process_state == ServerProcessState.RUNNING:
 		print("Stopping server gracefully...")
 		(server["stdio"] as FileAccess).store_string("stop")
 		(server["stdio"] as FileAccess).flush()
-		
-		for i in range(200):
-			OS.delay_msec(10)
-			if !OS.is_process_running(server["pid"]):
-				break
-			
-		if OS.is_process_running(server["pid"]):
-			print("Killing server!")
-			OS.kill(server["pid"])
-			server_process_state = ServerProcessState.NOT_RUNNING
-
-		print("Waiting threads")
-		server_logs_err_thread.wait_to_finish()
-		server_logs_out_thread.wait_to_finish()
-
-	print("Quitting now")
-	get_tree().quit()
+		state = State.STOPPING
+	else:
+		print("Server now running, quitting now!")
+		quit_now()
 
 func play_solo(play_mode) -> void:
 	var _output = []
