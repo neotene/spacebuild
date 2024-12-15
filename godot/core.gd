@@ -186,7 +186,7 @@ func quit() -> void:
 	print("Quit called")
 	if server_process_state == ServerProcessState.RUNNING:
 		print("Stopping server gracefully...")
-		(server["stdio"] as FileAccess).store_string("stop")
+		(server["stdio"] as FileAccess).store_line("stop")
 		(server["stdio"] as FileAccess).flush()
 		state = State.STOPPING
 	else:
