@@ -31,7 +31,7 @@ pub fn gen_system() -> (Galactic, Vec<Galactic>) {
 
     let mut bodies_in_system = Vec::<Galactic>::default();
 
-    for _ in 1..100 {
+    for _ in 1..1000 {
         let x = rng.gen_range(0.0..1000.);
         let y = rng.gen_range(0.0..1000.);
         let z = rng.gen_range(0.0..10.);
