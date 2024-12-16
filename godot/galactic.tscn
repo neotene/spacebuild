@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://bxtdsx58ci7lc"]
 
-[ext_resource type="Script" path="res://galactic.gd" id="1_3ni0j"]
+[ext_resource type="Script" uid="uid://hnxg8rmtqpcr" path="res://galactic.gd" id="1_3ni0j"]
 [ext_resource type="ArrayMesh" uid="uid://xf56ycg1q1mi" path="res://data/Asteroid/10464_Asteroid_v1_Iterations-2.obj" id="2_2vyrt"]
 
 [node name="Galactic" type="Node3D" groups=["galactic"]]

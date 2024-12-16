@@ -2,10 +2,10 @@
 
 [ext_resource type="Theme" uid="uid://dxkx538kc58lm" path="res://theme.tres" id="1_0wktd"]
 [ext_resource type="PackedScene" uid="uid://ccsocck3s5afe" path="res://data/Intergalactic_Spaceship-(FBX 7.4 binary).fbx" id="1_lyh7i"]
-[ext_resource type="Script" path="res://player.gd" id="2_8qbqi"]
+[ext_resource type="Script" uid="uid://chac8ev04uob3" path="res://player.gd" id="2_8qbqi"]
 [ext_resource type="Environment" uid="uid://curcg1mpcwdn3" path="res://env.tres" id="3_0a8rj"]
-[ext_resource type="Script" path="res://core.gd" id="4_25w80"]
-[ext_resource type="Script" path="res://ui.gd" id="4_dehvo"]
+[ext_resource type="Script" uid="uid://b561buoe1ij7s" path="res://core.gd" id="4_25w80"]
+[ext_resource type="Script" uid="uid://brrsqmjmrhj3o" path="res://ui.gd" id="4_dehvo"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1u3xw"]
 bg_color = Color(0.6, 0.6, 0.6, 0)
