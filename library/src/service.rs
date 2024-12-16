@@ -149,9 +149,15 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                             info!("Message send error: {}", result.err().unwrap());
                         }
                     }
-                    Message::Binary(_msg) => {}
-                    Message::Ping(_msg) => {}
-                    Message::Pong(_msg) => {}
+                    Message::Binary(msg) => {
+                        log::trace!("{:?}", msg);
+                    }
+                    Message::Ping(msg) => {
+                        log::trace!("{:?}", msg);
+                    }
+                    Message::Pong(msg) => {
+                        log::trace!("{:?}", msg);
+                    }
                     Message::Close(msg) => {
                         info!("WS close request received: {:?}", msg);
                         if !uuid.is_max() {
@@ -159,12 +165,14 @@ async fn serve_websocket(websocket: HyperWebsocket, instance: Arc<Mutex<Instance
                                 unreachable!()
                             }
                         }
-                        // if websocket.close(None).await.is_err() {
-                        //     log::trace!("Could not close socket on close request");
-                        // };
+                        if websocket.close(None).await.is_err() {
+                            log::trace!("Could not close socket on close request");
+                        };
                         break;
                     }
-                    Message::Frame(_msg) => {}
+                    Message::Frame(msg) => {
+                        log::trace!("{:?}", msg);
+                    }
                 }
             }
         }

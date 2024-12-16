@@ -148,11 +148,12 @@ func handle_server(delta):
 func handle_network():
 	var new_state = state
 	var new_network_state = network_state
+
 	if network_state != NetworkState.IDLE:
 		socket.poll()
 		var socket_state = socket.get_ready_state()
 		if socket_state == WebSocketPeer.STATE_CLOSING:
-			socket.poll()
+			#socket.poll()
 			print("Closing")
 		elif socket_state == WebSocketPeer.STATE_CLOSED:
 			var code = socket.get_close_code()
@@ -174,41 +175,48 @@ func handle_network():
 					print("Send error")
 				else:
 					new_network_state = NetworkState.AUTHENTICATING
+		else:
+			if socket_state == WebSocketPeer.STATE_CONNECTING:
+				print("Got disconnected !")
+				if state == State.PLAYING_SOLO:
+					stop_server()
+					refresh(state, new_network_state)
+					return
 
-		elif network_state == NetworkState.AUTHENTICATING:
-			while socket.get_available_packet_count():
-				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
-				print("Received: %s" % variant)
-				if variant["success"] == false:
-					ui.error_placeholder.set_text("Authentication failed: %s" % variant["message"])
-					socket.close()
-				else:
-					print("Login success, uuid is %s" % variant["message"])
-					new_network_state = NetworkState.WAITING_GAMEINFO
-					if server_process_state == ServerProcessState.RUNNING:
-						new_state = State.PLAYING_SOLO
+			elif network_state == NetworkState.AUTHENTICATING:
+				while socket.get_available_packet_count():
+					var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
+					print("Received: %s" % variant)
+					if variant["success"] == false:
+						ui.error_placeholder.set_text("Authentication failed: %s" % variant["message"])
+						socket.close()
 					else:
-						new_state = State.PLAYING_ONLINE
+						print("Login success, uuid is %s" % variant["message"])
+						new_network_state = NetworkState.WAITING_GAMEINFO
+						if server_process_state == ServerProcessState.RUNNING:
+							new_state = State.PLAYING_SOLO
+						else:
+							new_state = State.PLAYING_ONLINE
 
-		elif network_state == NetworkState.WAITING_GAMEINFO:
-			while socket.get_available_packet_count():
-				var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
-				print("Received: %s" % variant)
-				var galactics = container.get_children()
-				if variant.has("ElementsInSystem"):
-					var elements = variant["ElementsInSystem"] as Array
-					for element in elements:
-						var found = false
-						for galactic in galactics:
-							if galactic.get_name() == element["uuid"]:
-								galactic.position = Vector3(element["coords"][0], element["coords"][1], element["coords"][2])
-								found = true
-								break
-						if !found:
-							var galactic = preload("res://galactic.tscn")
-							var node = galactic.instantiate();
-							node.set_name(element["uuid"])
-							container.add_child(node)
+			elif network_state == NetworkState.WAITING_GAMEINFO:
+				while socket.get_available_packet_count():
+					var variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
+					print("Received: %s" % variant)
+					var galactics = container.get_children()
+					if variant.has("ElementsInSystem"):
+						var elements = variant["ElementsInSystem"] as Array
+						for element in elements:
+							var found = false
+							for galactic in galactics:
+								if galactic.get_name() == element["uuid"]:
+									galactic.position = Vector3(element["coords"][0], element["coords"][1], element["coords"][2])
+									found = true
+									break
+							if !found:
+								var galactic = preload("res://galactic.tscn")
+								var node = galactic.instantiate();
+								node.set_name(element["uuid"])
+								container.add_child(node)
 
 	refresh(new_state, new_network_state)
 			
