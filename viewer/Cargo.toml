@@ -1,0 +1,21 @@
+[package]
+name = "spacebuild-viewer"
+version = "0.1.0"
+authors = ["Pierre-Alexandre Goya <pierre.alexandre.goya@gmail.com>"]
+edition = "2021"
+
+[[bin]]
+name = "spacebuild-viewer"
+path = "main.rs"
+test = false
+doctest = false
+
+[dependencies]
+spacebuild = { path = "../library", version = "0.1.0"}
+anyhow = "1.0.94"
+clap = { version = "4.5.23", features = ["derive"]} 
+tokio = { version = "1.42.0", features = ["full"]}
+uuid = "1.11.0"
+ratatui = "0.29.0"
+crossterm = { version = "0.28.1", features = ["event-stream"] }
+futures = "0.3.31"

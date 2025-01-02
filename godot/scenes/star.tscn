@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3 uid="uid://cjxbuusphkmql"]
+
+[ext_resource type="Script" uid="uid://hnxg8rmtqpcr" path="res://galactic.gd" id="1_mcqwg"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mcqwg"]
+shading_mode = 0
+
+[node name="Star" type="Node3D" groups=["celestial"]]
+script = ExtResource("1_mcqwg")
+
+[node name="Model" type="CSGSphere3D" parent="."]
+transform = Transform3D(1000, 0, 0, 0, 1000, 0, 0, 0, 1000, 0, 0, 0)
+layers = 512
+rings = 14
+material = SubResource("StandardMaterial3D_mcqwg")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]
+light_energy = 1e+06
+light_cull_mask = 4294966783
+omni_range = 4096.0
+omni_attenuation = 2.0

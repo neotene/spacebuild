@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://bmjmtq04p3qc6"]
+
+[ext_resource type="Script" uid="uid://hnxg8rmtqpcr" path="res://galactic.gd" id="1_530pw"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_v3ux1"]
+
+[node name="Moon" type="Node3D" groups=["galactic"]]
+transform = Transform3D(0.179176, 0, 0, 0, 0.179176, 0, 0, 0, 0.179176, 0, 0, 0)
+script = ExtResource("1_530pw")
+
+[node name="Model" type="CSGSphere3D" parent="."]
+transform = Transform3D(48.2507, 0, 0, 0, 48.2507, 0, 0, 0, 48.2507, 0, 0, 0)
+rings = 10
+smooth_faces = false
+material = SubResource("StandardMaterial3D_v3ux1")

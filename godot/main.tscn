@@ -1,0 +1,386 @@
+[gd_scene load_steps=10 format=3 uid="uid://cj5ip8gskegxr"]
+
+[ext_resource type="Theme" uid="uid://dxkx538kc58lm" path="res://theme.tres" id="1_0wktd"]
+[ext_resource type="PackedScene" uid="uid://ccsocck3s5afe" path="res://data/spaceship.fbx" id="1_lyh7i"]
+[ext_resource type="Script" uid="uid://chac8ev04uob3" path="res://player.gd" id="2_8qbqi"]
+[ext_resource type="Texture2D" uid="uid://cexmci72sm7qs" path="res://data/reticle.png" id="3_272bh"]
+[ext_resource type="Texture2D" uid="uid://du3hcd5ouqwci" path="res://data/point.png" id="4_5vw27"]
+[ext_resource type="Script" uid="uid://b561buoe1ij7s" path="res://core.gd" id="4_25w80"]
+[ext_resource type="Script" uid="uid://brrsqmjmrhj3o" path="res://ui.gd" id="4_dehvo"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1u3xw"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
+
+[sub_resource type="Environment" id="Environment_272bh"]
+
+[node name="Node3D" type="Node3D"]
+
+[node name="UI" type="Control" parent="." groups=["ui"]]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_0wktd")
+script = ExtResource("4_dehvo")
+
+[node name="Reticle" type="Sprite2D" parent="UI" groups=["reticle"]]
+position = Vector2(445, 445)
+scale = Vector2(0.085, 0.085)
+texture = ExtResource("3_272bh")
+
+[node name="Point" type="Sprite2D" parent="UI/Reticle" groups=["point"]]
+scale = Vector2(0.72, 0.72)
+texture = ExtResource("4_5vw27")
+
+[node name="Server" type="RichTextLabel" parent="UI" groups=["server_logs"]]
+custom_minimum_size = Vector2(300, 600)
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = -450.0
+offset_right = 300.0
+offset_bottom = 450.0
+grow_vertical = 2
+focus_mode = 1
+theme_override_font_sizes/normal_font_size = 10
+scroll_active = false
+scroll_following = true
+shortcut_keys_enabled = false
+deselect_on_focus_loss_enabled = false
+drag_and_drop_selection_enabled = false
+
+[node name="Title" type="Label" parent="UI" groups=["title"]]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -293.5
+offset_top = -312.845
+offset_right = 293.5
+offset_bottom = -188.845
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.377918, 0.703436, 0.901346, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 20
+theme_override_font_sizes/font_size = 110
+text = "Space Build"
+horizontal_alignment = 1
+
+[node name="Info" type="Label" parent="UI" groups=["info"]]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -205.0
+offset_bottom = 24.0
+grow_horizontal = 0
+text = "Loading galactics..."
+
+[node name="CenterContainer" type="CenterContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer2" type="PanelContainer" parent="UI/CenterContainer" groups=["playing_menu"]]
+custom_minimum_size = Vector2(450, 350)
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="UI/CenterContainer/PanelContainer2"]
+layout_mode = 2
+
+[node name="HSplitContainer" type="HSplitContainer" parent="UI/CenterContainer/PanelContainer2/CenterContainer"]
+layout_mode = 2
+dragger_visibility = 1
+
+[node name="Leave" type="Button" parent="UI/CenterContainer/PanelContainer2/CenterContainer/HSplitContainer" groups=["leave_game_button"]]
+layout_mode = 2
+focus_mode = 0
+text = "Leave"
+
+[node name="Back to game" type="Button" parent="UI/CenterContainer/PanelContainer2/CenterContainer/HSplitContainer" groups=["back_to_game_button"]]
+layout_mode = 2
+focus_mode = 0
+text = "Back to game"
+
+[node name="Loading" type="Label" parent="UI/CenterContainer" groups=["loading"]]
+layout_mode = 2
+theme_override_font_sizes/font_size = 50
+text = "Loading"
+
+[node name="PanelContainer" type="PanelContainer" parent="UI/CenterContainer" groups=["modale"]]
+custom_minimum_size = Vector2(450, 350)
+layout_mode = 2
+
+[node name="Welcome" type="VSplitContainer" parent="UI/CenterContainer/PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+dragger_visibility = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 0
+
+[node name="GameMode" type="TabContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer" groups=["gamemode_tabs"]]
+layout_mode = 2
+current_tab = 0
+clip_tabs = false
+use_hidden_tabs_for_min_size = true
+tab_focus_mode = 0
+
+[node name="Solo" type="VBoxContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode" groups=["solo_tab"]]
+layout_mode = 2
+metadata/_tab_index = 0
+
+[node name="Header" type="HSplitContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo"]
+layout_mode = 2
+dragger_visibility = 1
+
+[node name="Margins" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 5
+
+[node name="Label" type="Label" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Margins"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("StyleBoxFlat_1u3xw")
+text = "Worlds"
+
+[node name="Buttons" type="HBoxContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header"]
+layout_mode = 2
+alignment = 1
+
+[node name="Margins" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Buttons"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 5
+
+[node name="Button" type="Button" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Buttons/Margins" groups=["delete_button"]]
+layout_mode = 2
+focus_mode = 0
+disabled = true
+text = "Delete world"
+
+[node name="Margins2" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Buttons"]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 5
+
+[node name="Button" type="Button" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Header/Buttons/Margins2" groups=["open_folder_button"]]
+layout_mode = 2
+focus_mode = 0
+text = "Open folder"
+
+[node name="Worlds" type="Tree" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo" groups=["worlds_tree"]]
+custom_minimum_size = Vector2(0, 145.48)
+layout_mode = 2
+focus_mode = 0
+columns = 2
+allow_reselect = true
+select_mode = 1
+scroll_horizontal_enabled = false
+
+[node name="Margins2" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="WorldCreation" type="HSplitContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2"]
+layout_mode = 2
+dragger_visibility = 1
+
+[node name="Margins" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation"]
+layout_mode = 2
+focus_mode = 1
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 5
+
+[node name="LineEdit" type="LineEdit" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation/Margins" groups=["world_field"]]
+custom_minimum_size = Vector2(230, 0)
+layout_mode = 2
+focus_mode = 1
+placeholder_text = "World name"
+
+[node name="Create" type="Button" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Solo/Margins2/WorldCreation" groups=["create_button"]]
+layout_mode = 2
+focus_mode = 1
+disabled = true
+text = "Create world"
+
+[node name="Online" type="VBoxContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode"]
+visible = false
+layout_mode = 2
+alignment = 1
+metadata/_tab_index = 1
+
+[node name="Margins" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="Host" type="HSplitContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins"]
+layout_mode = 2
+split_offset = 100
+dragger_visibility = 1
+
+[node name="Label" type="Label" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins/Host"]
+layout_mode = 2
+text = "Host"
+
+[node name="LineEdit" type="LineEdit" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins/Host" groups=["host_field"]]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "localhost"
+
+[node name="Margins2" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="Port" type="HSplitContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins2"]
+layout_mode = 2
+split_offset = 100
+dragger_visibility = 1
+
+[node name="Label" type="Label" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins2/Port"]
+layout_mode = 2
+text = "Port"
+
+[node name="LineEdit" type="LineEdit" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins2/Port" groups=["port_field"]]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "2567"
+
+[node name="Margins3" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="Encrypted" type="HSplitContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins3"]
+layout_mode = 2
+split_offset = 350
+dragger_visibility = 1
+
+[node name="Label" type="Label" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins3/Encrypted"]
+layout_mode = 2
+text = "Encrypted"
+
+[node name="CheckButton" type="CheckButton" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins3/Encrypted" groups=["encrypted_switch"]]
+layout_mode = 2
+focus_mode = 0
+
+[node name="Margins4" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="Login" type="HSplitContainer" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins4"]
+layout_mode = 2
+split_offset = 100
+dragger_visibility = 1
+
+[node name="Label" type="Label" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins4/Login"]
+layout_mode = 2
+text = "Login"
+
+[node name="LineEdit" type="LineEdit" parent="UI/CenterContainer/PanelContainer/Welcome/MarginContainer/GameMode/Online/Margins4/Login" groups=["login_field"]]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="UI/CenterContainer/PanelContainer/Welcome"]
+layout_mode = 2
+size_flags_vertical = 0
+alignment = 1
+
+[node name="Margins4" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/Actions"]
+layout_mode = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 20
+
+[node name="Quit" type="Button" parent="UI/CenterContainer/PanelContainer/Welcome/Actions/Margins4" groups=["quit_button"]]
+layout_mode = 2
+size_flags_vertical = 4
+focus_mode = 0
+text = "Quit"
+
+[node name="ErrorPlaceholder" type="Label" parent="UI/CenterContainer/PanelContainer/Welcome/Actions" groups=["error_placeholder"]]
+custom_minimum_size = Vector2(276.435, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+
+[node name="Margins5" type="MarginContainer" parent="UI/CenterContainer/PanelContainer/Welcome/Actions"]
+layout_mode = 2
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 20
+
+[node name="Play" type="Button" parent="UI/CenterContainer/PanelContainer/Welcome/Actions/Margins5" groups=["play_button"]]
+layout_mode = 2
+size_flags_vertical = 4
+focus_mode = 0
+disabled = true
+text = "Play"
+
+[node name="RichTextLabel" type="RichTextLabel" parent="UI" groups=["f3_infos"]]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -80.79
+offset_right = 80.79
+offset_bottom = 86.49
+grow_horizontal = 2
+
+[node name="Core" type="Node" parent="." groups=["core"]]
+script = ExtResource("4_25w80")
+
+[node name="Container" type="Node3D" parent="." groups=["container"]]
+
+[node name="Player" type="Node3D" parent="." groups=["player"]]
+script = ExtResource("2_8qbqi")
+
+[node name="Camera3D" type="Camera3D" parent="Player"]
+transform = Transform3D(-1, 4.34524e-09, -8.87594e-08, -2.17262e-08, 0.956539, 0.291604, 8.61689e-08, 0.291604, -0.956539, -2.38419e-07, 1.36687, -8.80393)
+environment = SubResource("Environment_272bh")
+
+[node name="Ship" parent="Player" groups=["ship"] instance=ExtResource("1_lyh7i")]
+transform = Transform3D(0.213269, 0, 0, 0, 0.213269, 0, 0, 0, 0.213269, 0, -0.461831, -5.85648)
+
+[node name="SpotLight3D" type="SpotLight3D" parent="Player"]
+transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 0, 0, -10.75)
+spot_range = 20.7038
+spot_angle = 18.2813

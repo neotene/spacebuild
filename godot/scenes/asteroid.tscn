@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://bxtdsx58ci7lc"]
+
+[ext_resource type="Script" uid="uid://hnxg8rmtqpcr" path="res://galactic.gd" id="1_3ni0j"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_v3ux1"]
+
+[node name="Asteroid" type="Node3D" groups=["galactic"]]
+transform = Transform3D(0.203236, 0, 0, 0, 0.203236, 0, 0, 0, 0.203236, 0, 0, 0)
+script = ExtResource("1_3ni0j")
+
+[node name="Model" type="CSGSphere3D" parent="."]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+radial_segments = 8
+rings = 8
+smooth_faces = false
+material = SubResource("StandardMaterial3D_v3ux1")

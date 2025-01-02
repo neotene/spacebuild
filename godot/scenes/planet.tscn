@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://dlh6x2eartn7c"]
+
+[ext_resource type="Script" uid="uid://hnxg8rmtqpcr" path="res://galactic.gd" id="1_cktii"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_v3ux1"]
+
+[node name="Planet" type="Node3D" groups=["galactic"]]
+script = ExtResource("1_cktii")
+
+[node name="Model" type="CSGSphere3D" parent="."]
+transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0)
+rings = 10
+smooth_faces = false
+material = SubResource("StandardMaterial3D_v3ux1")
