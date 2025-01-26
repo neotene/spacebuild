@@ -83,9 +83,9 @@ impl Galaxy {
                     new_coordinates_sph.phi = PI;
                 }
 
-                let delta_car = Vector3::from_coord(new_coordinates_sph - local_coordinates_sph);
+                // let delta_car = Vector3::from_coord(new_coordinates_sph - local_coordinates_sph);
 
-                celestial.coords += delta_car;
+                // celestial.coords += delta_car;
 
                 let mut ids = vec![celestial.id];
 
@@ -93,7 +93,7 @@ impl Galaxy {
                     let id = ids.pop().unwrap();
                     celestials.iter_mut().for_each(|g| {
                         if g.gravity_center == id {
-                            g.coords += delta_car;
+                            // g.coords += delta_car;
                             ids.push(g.id);
                         }
                     });
