@@ -76,16 +76,18 @@ impl Galaxy {
                 let local_coordinates_car = celestial.coords - gravity_center.coords;
                 let local_coordinates_sph = Spherical::from_coord(local_coordinates_car);
                 let mut new_coordinates_sph = local_coordinates_sph.clone();
-                new_coordinates_sph.phi = new_coordinates_sph.phi + celestial.local_speed * delta;
+                new_coordinates_sph.phi =
+                    new_coordinates_sph.phi + celestial.rotating_speed * delta;
                 if new_coordinates_sph.phi > PI {
                     new_coordinates_sph.phi = -PI;
                 } else if new_coordinates_sph.phi < -PI {
                     new_coordinates_sph.phi = PI;
                 }
 
-                // let delta_car = Vector3::from_coord(new_coordinates_sph - local_coordinates_sph);
+                let delta_car = Vector3::from_coord(new_coordinates_sph)
+                    - Vector3::from_coord(local_coordinates_sph);
 
-                // celestial.coords += delta_car;
+                celestial.coords += delta_car;
 
                 let mut ids = vec![celestial.id];
 
@@ -93,7 +95,7 @@ impl Galaxy {
                     let id = ids.pop().unwrap();
                     celestials.iter_mut().for_each(|g| {
                         if g.gravity_center == id {
-                            // g.coords += delta_car;
+                            g.coords += delta_car;
                             ids.push(g.id);
                         }
                     });

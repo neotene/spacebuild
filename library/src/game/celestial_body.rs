@@ -32,18 +32,7 @@ impl RTreeObject for CelestialBody {
     type Envelope = AABB<[f64; 3]>;
 
     fn envelope(&self) -> Self::Envelope {
-        AABB::from_corners(
-            [
-                self.coords.x - 0.1,
-                self.coords.y - 0.1,
-                self.coords.z - 0.1,
-            ],
-            [
-                self.coords.x + 0.1,
-                self.coords.y + 0.1,
-                self.coords.z + 0.1,
-            ],
-        )
+        AABB::from_point([self.coords.x, self.coords.y, self.coords.z])
     }
 }
 

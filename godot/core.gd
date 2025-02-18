@@ -122,10 +122,10 @@ func _process(delta: float) -> void:
 			var gravity_center = container.get_node_or_null(str(body_info.gravity_center))
 			assert(gravity_center)
 			var body_transform = body.transform as Transform3D
-			body_transform = body_transform.translated(-gravity_center.global_position)
-			body_transform = body_transform.rotated(Vector3.UP, body_info.rotating_speed / 2 * delta)
-			body_transform = body_transform.translated(gravity_center.global_position)
-			body.transform = body_transform
+			#body_transform = body_transform.translated(-gravity_center.global_position)
+			#body_transform = body_transform.rotated(Vector3.UP, body_info.rotating_speed / 2 * delta)
+			#body_transform = body_transform.translated(gravity_center.global_position)
+			#body.transform = body_transform
 			
 			
 
