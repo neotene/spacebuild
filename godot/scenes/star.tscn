@@ -15,7 +15,6 @@ rings = 14
 material = SubResource("StandardMaterial3D_mcqwg")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
-light_energy = 1e+06
+light_energy = 1000.0
 light_cull_mask = 4294966783
-omni_range = 4096.0
-omni_attenuation = 2.0
+omni_range = 1e+06
